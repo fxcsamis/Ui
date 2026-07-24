@@ -9,7 +9,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -335,6 +339,9 @@ fun MainProfileContent(
                                         // Regular click!
                                         if (!viewModel.isPrivateVaultSetup) {
                                             viewModel.showPrivateVaultPasswordTypeDialog = true
+                                        } else if (viewModel.privateVaultPasswordType == "Biometric" || viewModel.privateVaultBiometricEnabled) {
+                                            viewModel.biometricAuthTarget = "private_vault"
+                                            viewModel.showFingerprintAuth = true
                                         } else {
                                             viewModel.showPrivateVaultUnlockDialog = true
                                         }
@@ -1916,6 +1923,9 @@ fun WavySignupBanner(
                         
                         if (!viewModel.isPrivateVaultSetup) {
                             viewModel.showPrivateVaultPasswordTypeDialog = true
+                        } else if (viewModel.privateVaultPasswordType == "Biometric" || viewModel.privateVaultBiometricEnabled) {
+                            viewModel.biometricAuthTarget = "private_vault"
+                            viewModel.showFingerprintAuth = true
                         } else {
                             viewModel.showPrivateVaultUnlockDialog = true
                         }
@@ -3584,11 +3594,14 @@ fun PrivateVaultUnlockDialog(viewModel: CloudihubViewModel) {
 
     // Auto-trigger biometric lock on open if enabled!
     LaunchedEffect(Unit) {
-        if (viewModel.privateVaultBiometricEnabled) {
+        if (viewModel.privateVaultPasswordType == "Biometric" || viewModel.privateVaultBiometricEnabled) {
             viewModel.biometricAuthTarget = "private_vault"
             viewModel.showFingerprintAuth = true
+            viewModel.showPrivateVaultUnlockDialog = false
         }
     }
+
+    if (viewModel.privateVaultPasswordType == "Biometric") return
 
     LaunchedEffect(viewModel.activeProfilePage) {
         if (viewModel.activeProfilePage == "private_vault") {
@@ -3859,12 +3872,12 @@ fun SelectVaultFilesDialog(
 ) {
     val sampleAvailableFiles = remember {
         listOf(
-            CloudihubViewModel.VaultItem("Family_Vacation_2026.mp4", "45.2 MB", "Video", "2026-07-24", "audio"),
-            CloudihubViewModel.VaultItem("Confidential_Client_Clip.mp4", "88.0 MB", "Video", "2026-07-24", "audio"),
-            CloudihubViewModel.VaultItem("Private_Voice_Recording.m4a", "8.4 MB", "Audio", "2026-07-24", "audio"),
-            CloudihubViewModel.VaultItem("Bank_Account_Passcode.pdf", "2.1 MB", "Document", "2026-07-24", "pdf"),
-            CloudihubViewModel.VaultItem("Secret_Photo_Album.jpg", "5.6 MB", "Image", "2026-07-24", "image"),
-            CloudihubViewModel.VaultItem("Crypto_Vault_Backup.key", "12 KB", "Key File", "2026-07-24", "key")
+            CloudihubViewModel.VaultItem(folderId = "sample", title = "Family_Vacation_2026.mp4", size = "45.2 MB", type = "Videos", date = "2026-07-24"),
+            CloudihubViewModel.VaultItem(folderId = "sample", title = "Confidential_Client_Clip.mp4", size = "88.0 MB", type = "Videos", date = "2026-07-24"),
+            CloudihubViewModel.VaultItem(folderId = "sample", title = "Private_Voice_Recording.m4a", size = "8.4 MB", type = "Audio", date = "2026-07-24"),
+            CloudihubViewModel.VaultItem(folderId = "sample", title = "Bank_Account_Passcode.pdf", size = "2.1 MB", type = "Documents", date = "2026-07-24"),
+            CloudihubViewModel.VaultItem(folderId = "sample", title = "Secret_Photo_Album.jpg", size = "5.6 MB", type = "Photos", date = "2026-07-24"),
+            CloudihubViewModel.VaultItem(folderId = "sample", title = "Crypto_Vault_Backup.key", size = "12 KB", type = "Notes & Keys", date = "2026-07-24")
         )
     }
 
@@ -4060,6 +4073,405 @@ fun ImportingToVaultDialog(itemCount: Int) {
 }
 
 @Composable
+fun CreateVaultFolderDialog(
+    viewModel: CloudihubViewModel,
+    onDismiss: () -> Unit
+) {
+    var folderName by remember { mutableStateOf("") }
+    val types = listOf("Photos", "Videos", "Audio", "Documents", "Notes & Keys")
+    var selectedType by remember { mutableStateOf("Photos") }
+
+    val previewImageUrl = when (selectedType) {
+        "Photos" -> viewModel.folderImagePhotos
+        "Videos" -> viewModel.folderImageVideos
+        "Audio" -> viewModel.folderImageAudio
+        "Documents" -> viewModel.folderImageDocuments
+        else -> viewModel.folderImageNotes
+    }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Create New Private Folder",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFF1F5F9))
+                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(model = previewImageUrl),
+                        contentDescription = "Folder Preview Image",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = folderName,
+                    onValueChange = { folderName = it },
+                    label = { Text("Folder Name") },
+                    placeholder = { Text("e.g. My Secret Vault") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Select Folder Type:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF475569),
+                    modifier = Modifier.align(Alignment.Start)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(types) { type ->
+                        val isSelected = selectedType == type
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedType = type },
+                            label = {
+                                Text(
+                                    text = type,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF0284C7),
+                                selectedLabelColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel", color = Color(0xFF64748B))
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Button(
+                        enabled = folderName.isNotBlank(),
+                        onClick = {
+                            viewModel.createNewVaultFolder(folderName.trim(), selectedType)
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Create Folder", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun VaultFolderDetailView(
+    folder: CloudihubViewModel.VaultFolder,
+    viewModel: CloudihubViewModel
+) {
+    val context = LocalContext.current
+    val isDark = viewModel.isDarkTheme
+    val textCol = if (isDark) Color.White else Color(0xFF0F172A)
+    val cardBg = if (isDark) Color(0xFF1E293B) else Color.White
+    val cardBorder = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+    val descCol = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
+    val accentCol = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)
+
+    var searchQuery by remember { mutableStateOf("") }
+    var showSelectFilesModal by remember { mutableStateOf(false) }
+    var isImportingFiles by remember { mutableStateOf(false) }
+    var pendingSelectedFiles by remember { mutableStateOf<List<CloudihubViewModel.VaultItem>>(emptyList()) }
+    var isFolderLoading by remember { mutableStateOf(true) }
+
+    val folderItems = viewModel.vaultItems.filter {
+        (it.folderId == folder.id || it.type == folder.type) &&
+                (searchQuery.isEmpty() || it.title.contains(searchQuery, ignoreCase = true))
+    }
+
+    LaunchedEffect(folder.id) {
+        isFolderLoading = true
+        delay(1200)
+        isFolderLoading = false
+    }
+
+    if (isFolderLoading) {
+        VaultLottieLoadingView(
+            title = "Loading ${folder.name}...",
+            subtitle = "Decrypting files in folder...",
+            modifier = Modifier.fillMaxSize()
+        )
+        return
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC))
+            .padding(16.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { viewModel.selectedVaultFolder = null },
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f))
+                ) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = textCol)
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Image(
+                    painter = rememberAsyncImagePainter(model = folder.imageUrl),
+                    contentDescription = null,
+                    modifier = Modifier.size(44.dp),
+                    contentScale = ContentScale.Fit
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = folder.name,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textCol,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${folderItems.size} encrypted ${folder.type.lowercase()} item(s)",
+                        fontSize = 12.sp,
+                        color = descCol
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search inside ${folder.name}...", fontSize = 13.sp, color = descCol) },
+                leadingIcon = { Icon(Icons.Default.Search, null, tint = descCol) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Close, null, tint = descCol)
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = cardBg,
+                    unfocusedContainerColor = cardBg,
+                    focusedBorderColor = accentCol,
+                    unfocusedBorderColor = cardBorder,
+                    focusedTextColor = textCol,
+                    unfocusedTextColor = textCol
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (folderItems.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.FolderOpen,
+                            contentDescription = null,
+                            tint = descCol.copy(alpha = 0.5f),
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "No files in this folder yet",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = descCol
+                        )
+                        Text(
+                            text = "Tap the + button below to import files or videos",
+                            fontSize = 12.sp,
+                            color = descCol.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    items(folderItems) { item ->
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBg),
+                            border = BorderStroke(1.dp, cardBorder),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(accentCol.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = when (item.type) {
+                                            "Photos" -> Icons.Default.Image
+                                            "Videos" -> Icons.Default.PlayCircle
+                                            "Audio" -> Icons.Default.Audiotrack
+                                            "Documents" -> Icons.Default.Description
+                                            else -> Icons.Default.Key
+                                        },
+                                        contentDescription = null,
+                                        tint = accentCol,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.title,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textCol,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "${item.size} • Encrypted AES-256 • ${item.date}",
+                                        fontSize = 11.sp,
+                                        color = descCol
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        Toast.makeText(context, "Opening decrypted preview for ${item.title}", Toast.LENGTH_SHORT).show()
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "Decrypted",
+                                        tint = Color(0xFF10B981)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        ExtendedFloatingActionButton(
+            onClick = { showSelectFilesModal = true },
+            icon = { Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White) },
+            text = { Text("Add ${folder.type}", fontWeight = FontWeight.Bold, color = Color.White) },
+            containerColor = accentCol,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 16.dp, end = 8.dp)
+        )
+
+        if (showSelectFilesModal) {
+            SelectVaultFilesDialog(
+                onDismiss = { showSelectFilesModal = false },
+                onConfirm = { items ->
+                    showSelectFilesModal = false
+                    pendingSelectedFiles = items.map { it.copy(folderId = folder.id, type = folder.type) }
+                    isImportingFiles = true
+                }
+            )
+        }
+
+        if (isImportingFiles) {
+            ImportingToVaultDialog(itemCount = pendingSelectedFiles.size)
+
+            LaunchedEffect(isImportingFiles) {
+                delay(2800)
+                pendingSelectedFiles.forEach { item ->
+                    viewModel.addVaultItemToFolder(item)
+                }
+                isImportingFiles = false
+                Toast.makeText(
+                    context,
+                    "${pendingSelectedFiles.size} Item(s) successfully imported into ${folder.name}!",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+}
+
+@Composable
 fun PrivateVaultScreen(viewModel: CloudihubViewModel) {
     val context = LocalContext.current
     val isDark = viewModel.isDarkTheme
@@ -4076,25 +4488,26 @@ fun PrivateVaultScreen(viewModel: CloudihubViewModel) {
 
     var showMenu by remember { mutableStateOf(false) }
     var isVaultScanning by remember { mutableStateOf(true) }
-    var showSelectFilesModal by remember { mutableStateOf(false) }
-    var isImportingFiles by remember { mutableStateOf(false) }
-    var pendingSelectedFiles by remember { mutableStateOf<List<CloudihubViewModel.VaultItem>>(emptyList()) }
-
-    var showSuccessAnimation by remember { mutableStateOf(false) }
+    var showCreateFolderDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         isVaultScanning = true
-        delay(2200)
+        delay(1800)
         isVaultScanning = false
-        showSuccessAnimation = true
-        delay(2000)
-        showSuccessAnimation = false
+    }
+
+    if (viewModel.selectedVaultFolder != null) {
+        VaultFolderDetailView(
+            folder = viewModel.selectedVaultFolder!!,
+            viewModel = viewModel
+        )
+        return
     }
 
     if (isVaultScanning) {
         VaultLottieLoadingView(
-            title = "Searching & Decrypting Vault Files...",
-            subtitle = "Scanning local device storage for encrypted files...",
+            title = "Searching & Decrypting Vault Folders...",
+            subtitle = "Scanning local encrypted vault database...",
             modifier = Modifier.fillMaxSize()
         )
         return
@@ -4212,222 +4625,137 @@ fun PrivateVaultScreen(viewModel: CloudihubViewModel) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Screen lock protection notice
-            Card(
+            // Big Folders Grid
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFEF4444).copy(alpha = 0.12f)),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f))
+                    .weight(1f)
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Shield,
-                        contentDescription = null,
-                        tint = Color(0xFFEF4444),
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Vault Protection Active",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = Color(0xFFEF4444)
-                        )
-                        Text(
-                            text = "Screenshots and screen recordings are strictly disabled to prevent data leakage.",
-                            fontSize = 11.sp,
-                            color = if (isDark) Color(0xFFFCA5A5) else Color(0xFF7F1D1D)
-                        )
-                    }
-                }
-            }
+                // Existing Folders
+                items(viewModel.vaultFolders) { folder ->
+                    val itemCount = viewModel.vaultItems.count { it.folderId == folder.id || it.type == folder.type }
 
-            // Document Lists
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(viewModel.vaultItems) { item ->
                     Card(
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        border = BorderStroke(1.dp, cardBorder),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, cardBorder, RoundedCornerShape(16.dp)),
-                        colors = CardDefaults.cardColors(containerColor = cardBg),
-                        shape = RoundedCornerShape(16.dp)
+                            .height(180.dp)
+                            .clickable {
+                                viewModel.selectedVaultFolder = folder
+                            }
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .fillMaxSize()
                                 .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(46.dp)
-                                        .clip(CircleShape)
-                                        .background(accentCol.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = when (item.iconRes) {
-                                            "pdf" -> Icons.Default.InsertDriveFile
-                                            "xlsx" -> Icons.Default.InsertDriveFile
-                                            "audio" -> Icons.Default.PlayArrow
-                                            "image" -> Icons.Default.Image
-                                            else -> Icons.Default.VpnKey
-                                        },
-                                        contentDescription = null,
-                                        tint = accentCol,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(16.dp))
-
-                                Column {
-                                    Text(
-                                        text = item.title,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = textCol,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = "${item.type} • Secured ${item.date}",
-                                        fontSize = 11.sp,
-                                        color = descCol
-                                    )
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(model = folder.imageUrl),
+                                    contentDescription = folder.name,
+                                    modifier = Modifier.size(90.dp),
+                                    contentScale = ContentScale.Fit
+                                )
                             }
 
-                            Text(
-                                text = item.size,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = accentCol
-                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = folder.name,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textCol,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "$itemCount item(s)",
+                                    fontSize = 11.sp,
+                                    color = descCol
+                                )
+                            }
                         }
                     }
                 }
-            }
-        }
 
-        // Floating Action Button to Add Files/Videos to Private Vault
-        ExtendedFloatingActionButton(
-            onClick = { showSelectFilesModal = true },
-            icon = { Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White) },
-            text = { Text("Add Files / Videos", fontWeight = FontWeight.Bold, color = Color.White) },
-            containerColor = accentCol,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 16.dp, end = 8.dp)
-        )
-
-        // Select Files Dialog
-        if (showSelectFilesModal) {
-            SelectVaultFilesDialog(
-                onDismiss = { showSelectFilesModal = false },
-                onConfirm = { items ->
-                    showSelectFilesModal = false
-                    pendingSelectedFiles = items
-                    isImportingFiles = true
-                }
-            )
-        }
-
-        // Importing Progress Lottie Dialog
-        if (isImportingFiles) {
-            ImportingToVaultDialog(itemCount = pendingSelectedFiles.size)
-
-            LaunchedEffect(isImportingFiles) {
-                delay(2800)
-                pendingSelectedFiles.forEach { item ->
-                    viewModel.addVaultItem(item)
-                }
-                isImportingFiles = false
-                Toast.makeText(
-                    context,
-                    "${pendingSelectedFiles.size} File(s)/Video(s) successfully encrypted and added to Private Vault!",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-
-        // Beautiful Apple-Style FaceID/Success micro-animation overlay
-        if (showSuccessAnimation) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.4f)),
-                contentAlignment = Alignment.Center
-            ) {
-                var iconScale by remember { mutableStateOf(0.4f) }
-                LaunchedEffect(Unit) {
-                    iconScale = 1.15f
-                    delay(120)
-                    iconScale = 1.0f
-                }
-
-                val animatedScale by animateFloatAsState(
-                    targetValue = iconScale,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioHighBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                )
-
-                Card(
-                    modifier = Modifier
-                        .size(170.dp)
-                        .graphicsLayer(scaleX = animatedScale, scaleY = animatedScale)
-                        .shadow(16.dp, RoundedCornerShape(28.dp)),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF1E293B) else Color.White),
-                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
+                // More / Create New Folder Card using user-provided image
+                item {
+                    Card(
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) Color(0xFF0F172A).copy(alpha = 0.6f) else Color(0xFFE0F2FE).copy(alpha = 0.7f)
+                        ),
+                        border = BorderStroke(1.5.dp, accentCol.copy(alpha = 0.4f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clickable {
+                                showCreateFolderDialog = true
+                            }
                     ) {
-                        Box(
+                        Column(
                             modifier = Modifier
-                                .size(68.dp)
-                                .clip(CircleShape)
-                                .background(accentCol.copy(alpha = 0.12f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Success",
-                                tint = accentCol,
-                                modifier = Modifier.size(38.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(model = viewModel.folderImageMore),
+                                    contentDescription = "Create New Folder",
+                                    modifier = Modifier.size(90.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Create Folder",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accentCol,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Tap to add new",
+                                    fontSize = 11.sp,
+                                    color = descCol
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Vault Secured",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = textCol
-                        )
-                        Text(
-                            text = "Encrypted storage ready",
-                            fontSize = 11.sp,
-                            color = descCol
-                        )
                     }
                 }
             }
+        }
+
+        // Create Folder Dialog
+        if (showCreateFolderDialog) {
+            CreateVaultFolderDialog(
+                viewModel = viewModel,
+                onDismiss = { showCreateFolderDialog = false }
+            )
         }
     }
 }

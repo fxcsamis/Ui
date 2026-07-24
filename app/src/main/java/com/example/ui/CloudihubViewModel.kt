@@ -1270,17 +1270,85 @@ class CloudihubViewModel(application: Application) : AndroidViewModel(applicatio
     var tempPasswordType by mutableStateOf("PIN")
     var tempBiometricEnabled by mutableStateOf(false) // default to off as requested
 
-    // Private Vault item model
-    data class VaultItem(val title: String, val size: String, val type: String, val date: String, val iconRes: String)
-    val vaultItems = mutableStateListOf(
-        VaultItem("Personal_ID_Card_Scan.pdf", "2.4 MB", "Document", "2026-07-10", "pdf"),
-        VaultItem("Family_Savings_Statement_2026.xlsx", "1.1 MB", "Spreadsheet", "2026-07-15", "xlsx"),
-        VaultItem("Confidential_Crypto_Backup.key", "45 KB", "Key File", "2026-07-12", "key"),
-        VaultItem("Private_Voice_Memo_18.m4a", "8.9 MB", "Audio", "2026-07-16", "audio"),
-        VaultItem("Property_Deed_Scanned.jpg", "4.2 MB", "Image", "2026-07-17", "image")
+    // Private Vault data models
+    data class VaultFolder(
+        val id: String,
+        val name: String,
+        val type: String, // "Photos", "Videos", "Audio", "Documents", "Notes & Keys"
+        val imageUrl: String,
+        val isCustom: Boolean = false
     )
 
-    fun addVaultItem(item: VaultItem) {
+    data class VaultItem(
+        val id: String = java.util.UUID.randomUUID().toString(),
+        val folderId: String,
+        val title: String,
+        val size: String,
+        val type: String, // "Photos", "Videos", "Audio", "Documents", "Notes & Keys"
+        val date: String,
+        val mediaUrl: String? = null
+    )
+
+    // Image URLs provided by user
+    val folderImagePhotos = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784890208/51290-removebg-preview_c7mmle.png"
+    val folderImageVideos = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891108/ChatGPT_Image_Jul_24_2026_04_55_05_PM_uffdlg.png"
+    val folderImageAudio = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891108/ChatGPT_Image_Jul_24_2026_05_01_46_PM_c0k8en.png"
+    val folderImageDocuments = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891105/ChatGPT_Image_Jul_24_2026_04_56_52_PM_zrkeze.png"
+    val folderImageNotes = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891104/ChatGPT_Image_Jul_24_2026_04_58_27_PM_pwhbsz.png"
+    val folderImageMore = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891164/ChatGPT_Image_Jul_24_2026_05_05_43_PM_rjofzw.png"
+
+    var selectedVaultFolder by mutableStateOf<VaultFolder?>(null)
+
+    val vaultFolders = mutableStateListOf(
+        VaultFolder("folder_photos", "Secret Photos", "Photos", folderImagePhotos),
+        VaultFolder("folder_videos", "Private Videos", "Videos", folderImageVideos),
+        VaultFolder("folder_audio", "Audio Recordings", "Audio", folderImageAudio),
+        VaultFolder("folder_docs", "Encrypted Documents", "Documents", folderImageDocuments),
+        VaultFolder("folder_notes", "Passcodes & Keys", "Notes & Keys", folderImageNotes)
+    )
+
+    val vaultItems = mutableStateListOf(
+        // Photos
+        VaultItem("p1", "folder_photos", "Family_Vacation_Secret_01.jpg", "3.4 MB", "Photos", "2026-07-20", "https://picsum.photos/id/1015/800/600"),
+        VaultItem("p2", "folder_photos", "Personal_Passport_Copy.png", "1.8 MB", "Photos", "2026-07-18", "https://picsum.photos/id/1025/800/600"),
+        VaultItem("p3", "folder_photos", "Property_Deed_Photo.jpg", "4.2 MB", "Photos", "2026-07-17", "https://picsum.photos/id/1040/800/600"),
+
+        // Videos
+        VaultItem("v1", "folder_videos", "Birthday_Celebration_2026.mp4", "45.2 MB", "Videos", "2026-07-22", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"),
+        VaultItem("v2", "folder_videos", "Confidential_Client_Clip.mp4", "88.0 MB", "Videos", "2026-07-21", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"),
+
+        // Audio
+        VaultItem("a1", "folder_audio", "Private_Voice_Memo_18.m4a", "8.9 MB", "Audio", "2026-07-16"),
+        VaultItem("a2", "folder_audio", "Meeting_Secret_Recording.aac", "14.2 MB", "Audio", "2026-07-12"),
+
+        // Documents
+        VaultItem("d1", "folder_docs", "Personal_ID_Card_Scan.pdf", "2.4 MB", "Documents", "2026-07-10"),
+        VaultItem("d2", "folder_docs", "Family_Savings_Statement.xlsx", "1.1 MB", "Documents", "2026-07-15"),
+
+        // Notes & Keys
+        VaultItem("k1", "folder_notes", "Confidential_Crypto_Backup.key", "45 KB", "Notes & Keys", "2026-07-12"),
+        VaultItem("k2", "folder_notes", "Master_Recovery_Seed_Phrase.txt", "12 KB", "Notes & Keys", "2026-07-08")
+    )
+
+    fun createNewVaultFolder(name: String, type: String) {
+        val imageUrl = when (type) {
+            "Photos" -> folderImagePhotos
+            "Videos" -> folderImageVideos
+            "Audio" -> folderImageAudio
+            "Documents" -> folderImageDocuments
+            else -> folderImageNotes
+        }
+        val newFolder = VaultFolder(
+            id = "folder_${System.currentTimeMillis()}",
+            name = name,
+            type = type,
+            imageUrl = imageUrl,
+            isCustom = true
+        )
+        vaultFolders.add(newFolder)
+    }
+
+    fun addVaultItemToFolder(item: VaultItem) {
         vaultItems.add(0, item)
     }
 
