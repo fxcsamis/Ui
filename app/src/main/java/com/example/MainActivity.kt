@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import com.example.ui.components.FloatingAiLottieWidget
 import com.example.ui.CloudihubViewModel
 import com.example.ui.components.CloudSkyBackground
 import com.example.ui.components.DownloadsHub
@@ -178,6 +180,21 @@ class MainActivity : FragmentActivity() {
                                 .align(Alignment.BottomEnd)
                                 .padding(bottom = 85.dp, end = 10.dp)
                         )
+
+                        // 8. Global Floating AI Lottie Assistant Overlay (Available across all screens except Private Vault & Signup)
+                        if (!isVaultActive && !viewModel.showSignupScreen) {
+                            FloatingAiLottieWidget(
+                                isMediaPlaying = (viewModel.activeStreamingUrl.isNotEmpty() || viewModel.isPlaying),
+                                onSearchRequested = { query ->
+                                    viewModel.updateSearchQuery(query)
+                                    viewModel.selectTab(NavigationTab.Home)
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(bottom = 90.dp, end = 10.dp)
+                                    .zIndex(300f)
+                            )
+                        }
                     }
                 }
             }

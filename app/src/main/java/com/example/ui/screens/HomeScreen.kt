@@ -1089,18 +1089,6 @@ fun HomeScreen(
                 }
             )
         }
-
-        // --- FLOATING OVERLAY LOTTIE WIDGET & DYNAMIC AI ASSISTANT ---
-        FloatingAiLottieWidget(
-            isMediaPlaying = (viewModel.activeStreamingUrl.isNotEmpty() || viewModel.isPlaying),
-            onSearchRequested = { query ->
-                viewModel.updateSearchQuery(query)
-            },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 90.dp, end = 16.dp)
-                .zIndex(100f)
-        )
     }
 }
 
