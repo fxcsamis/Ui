@@ -475,10 +475,10 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Cute Download Icon with Active Badge
+                // Download Hub Button matching Voice/Reload Theme
                 Box(
                     contentAlignment = Alignment.TopEnd,
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     IconButton(
                         onClick = { viewModel.showDownloadHub = true },
@@ -486,13 +486,11 @@ fun HomeScreen(
                             .size(40.dp)
                             .testTag("download_icon_button")
                     ) {
-                        Image(
-                            painter = rememberAsyncImagePainter(CUSTOM_DOWNLOAD_ICON_URL),
+                        Icon(
+                            imageVector = Icons.Default.Download,
                             contentDescription = "Downloads",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
+                            tint = Color(0xFF0284C7),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
@@ -500,7 +498,7 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .offset(x = 2.dp, y = (-2).dp)
-                                .size(18.dp)
+                                .size(16.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFFEF4444)),
                             contentAlignment = Alignment.Center
@@ -508,7 +506,7 @@ fun HomeScreen(
                             Text(
                                 text = activeCount.toString(),
                                 color = Color.White,
-                                fontSize = 10.sp,
+                                fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }

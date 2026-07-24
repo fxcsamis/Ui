@@ -4072,6 +4072,7 @@ fun ImportingToVaultDialog(itemCount: Int) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateVaultFolderDialog(
     viewModel: CloudihubViewModel,
@@ -4080,6 +4081,7 @@ fun CreateVaultFolderDialog(
     var folderName by remember { mutableStateOf("") }
     val types = listOf("Photos", "Videos", "Audio", "Documents", "Notes & Keys")
     var selectedType by remember { mutableStateOf("Photos") }
+    val isDark = viewModel.isDarkTheme
 
     val previewImageUrl = when (selectedType) {
         "Photos" -> viewModel.folderImagePhotos
@@ -4089,118 +4091,124 @@ fun CreateVaultFolderDialog(
         else -> viewModel.folderImageNotes
     }
 
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = if (isDark) Color(0xFF1E293B) else Color.White,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Text(
+                text = "Create New Private Folder",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isDark) Color.White else Color(0xFF0F172A)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(90.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9))
+                    .border(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1), RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "Create New Private Folder",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Box(
+                Image(
+                    painter = rememberAsyncImagePainter(model = previewImageUrl),
+                    contentDescription = "Folder Preview Image",
                     modifier = Modifier
-                        .size(100.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFF1F5F9))
-                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = rememberAsyncImagePainter(model = previewImageUrl),
-                        contentDescription = "Folder Preview Image",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(8.dp),
-                        contentScale = ContentScale.Fit
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = folderName,
+                onValueChange = { folderName = it },
+                label = { Text("Folder Name") },
+                placeholder = { Text("e.g. My Secret Vault") },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF0284C7),
+                    unfocusedBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Select Folder Type:",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569),
+                modifier = Modifier.align(Alignment.Start)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(types) { type ->
+                    val isSelected = selectedType == type
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { selectedType = type },
+                        label = {
+                            Text(
+                                text = type,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF0284C7),
+                            selectedLabelColor = Color.White,
+                            containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9),
+                            labelColor = if (isDark) Color.White else Color(0xFF0F172A)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-                OutlinedTextField(
-                    value = folderName,
-                    onValueChange = { folderName = it },
-                    label = { Text("Folder Name") },
-                    placeholder = { Text("e.g. My Secret Vault") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Select Folder Type:",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF475569),
-                    modifier = Modifier.align(Alignment.Start)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(types) { type ->
-                        val isSelected = selectedType == type
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedType = type },
-                            label = {
-                                Text(
-                                    text = type,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFF0284C7),
-                                selectedLabelColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-                    }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel", color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B))
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                Button(
+                    enabled = folderName.isNotBlank(),
+                    onClick = {
+                        viewModel.createNewVaultFolder(folderName.trim(), selectedType)
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = Color(0xFF64748B))
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Button(
-                        enabled = folderName.isNotBlank(),
-                        onClick = {
-                            viewModel.createNewVaultFolder(folderName.trim(), selectedType)
-                            onDismiss()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Create Folder", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+                    Text("Create Folder", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -4691,7 +4699,7 @@ fun PrivateVaultScreen(viewModel: CloudihubViewModel) {
                     }
                 }
 
-                // More / Create New Folder Card using user-provided image
+                // More / Create New Folder Card using custom vector icon
                 item {
                     Card(
                         shape = RoundedCornerShape(24.dp),
@@ -4720,12 +4728,34 @@ fun PrivateVaultScreen(viewModel: CloudihubViewModel) {
                                     .fillMaxWidth(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Image(
-                                    painter = rememberAsyncImagePainter(model = viewModel.folderImageMore),
-                                    contentDescription = "Create New Folder",
-                                    modifier = Modifier.size(90.dp),
-                                    contentScale = ContentScale.Fit
-                                )
+                                // Designed Folder Creation Icon Badge
+                                Box(
+                                    modifier = Modifier
+                                        .size(76.dp)
+                                        .clip(CircleShape)
+                                        .background(accentCol.copy(alpha = 0.12f))
+                                        .border(1.5.dp, accentCol.copy(alpha = 0.3f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(54.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                Brush.linearGradient(
+                                                    colors = listOf(accentCol, Color(0xFF0284C7))
+                                                )
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CreateNewFolder,
+                                            contentDescription = "Create New Folder",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                    }
+                                }
                             }
 
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {

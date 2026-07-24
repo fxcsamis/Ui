@@ -99,12 +99,16 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         
         setContent {
-            val isVaultActive = viewModel.activeProfilePage == "private_vault"
+            val isVaultActive = viewModel.activeProfilePage == "private_vault" && viewModel.activeTab == NavigationTab.Profile
             LaunchedEffect(isVaultActive) {
+                val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
                 if (isVaultActive) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    insetsController.show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
                 }
             }
 
@@ -145,7 +149,7 @@ class MainActivity : FragmentActivity() {
                             }
 
                             // 3. Floating glassmorphic navigation bar
-                            val shouldHideNavBar = viewModel.showSignupScreen || (viewModel.activeTab == NavigationTab.Browser && 
+                            val shouldHideNavBar = viewModel.showSignupScreen || isVaultActive || (viewModel.activeTab == NavigationTab.Browser && 
                                     (viewModel.isBrowserFullscreen || viewModel.browserUrl.isNotEmpty()))
                             if (!shouldHideNavBar) {
                                 GlassmorphicNavBar(

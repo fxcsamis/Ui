@@ -1290,10 +1290,10 @@ class CloudihubViewModel(application: Application) : AndroidViewModel(applicatio
     )
 
     // Image URLs provided by user
-    val folderImagePhotos = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784890208/51290-removebg-preview_c7mmle.png"
+    val folderImagePhotos = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891105/ChatGPT_Image_Jul_24_2026_04_56_52_PM_zrkeze.png"
     val folderImageVideos = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891108/ChatGPT_Image_Jul_24_2026_04_55_05_PM_uffdlg.png"
     val folderImageAudio = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891108/ChatGPT_Image_Jul_24_2026_05_01_46_PM_c0k8en.png"
-    val folderImageDocuments = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891105/ChatGPT_Image_Jul_24_2026_04_56_52_PM_zrkeze.png"
+    val folderImageDocuments = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891104/ChatGPT_Image_Jul_24_2026_04_58_27_PM_pwhbsz.png"
     val folderImageNotes = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891104/ChatGPT_Image_Jul_24_2026_04_58_27_PM_pwhbsz.png"
     val folderImageMore = "https://res.cloudinary.com/rnqxlhkv/image/upload/v1784891164/ChatGPT_Image_Jul_24_2026_05_05_43_PM_rjofzw.png"
 
