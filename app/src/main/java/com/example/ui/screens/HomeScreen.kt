@@ -34,6 +34,11 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.BookmarkRemove
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
@@ -85,6 +90,7 @@ import com.example.ui.CloudVideo
 import com.example.ui.CloudihubViewModel
 import com.example.ui.components.CloudShape
 import com.example.ui.components.CloudSkyBackground
+import com.example.ui.components.FloatingAiLottieWidget
 import com.example.ui.components.LottieDownloadIcon
 import com.example.ui.components.NavigationTab
 import kotlinx.coroutines.delay
@@ -204,6 +210,7 @@ fun HomeScreen(
     var isSearchScreenOpen by remember { mutableStateOf(false) }
     var selectedVideoToShare by remember { mutableStateOf<CloudVideo?>(null) }
     var selectedVideoToDownload by remember { mutableStateOf<CloudVideo?>(null) }
+    var selectedVideoForMoreOptions by remember { mutableStateOf<CloudVideo?>(null) }
     var recentSearches by remember {
         mutableStateOf(listOf("Rainclouds", "Storm tracker", "Space timelapse", "Sky view", "Thunderstorm", "Rainbow"))
     }
@@ -333,7 +340,7 @@ fun HomeScreen(
                                 isDownloading = isVideoDownloading,
                                 onWatchLaterClick = { viewModel.toggleWatchLater(video) },
                                 onDownloadClick = { selectedVideoToDownload = video },
-                                onShareClick = { selectedVideoToShare = video },
+                                onMoreOptionsClick = { selectedVideoForMoreOptions = video },
                                 onPlayClick = { viewModel.playVideo(video) }
                             )
                         }
@@ -491,7 +498,7 @@ fun HomeScreen(
                     ) {
                         LottieDownloadIcon(
                             isDownloading = activeCount > 0,
-                            size = 28.dp
+                            size = 20.dp
                         )
                     }
 
@@ -1068,6 +1075,32 @@ fun HomeScreen(
                 onDismiss = { selectedVideoToDownload = null }
             )
         }
+        selectedVideoForMoreOptions?.let { videoForMore ->
+            VideoMoreOptionsSheet(
+                video = videoForMore,
+                isWatchLater = viewModel.isWatchLater(videoForMore.id),
+                onDismiss = { selectedVideoForMoreOptions = null },
+                onPlayClick = { viewModel.playVideo(videoForMore) },
+                onShareClick = { selectedVideoToShare = videoForMore },
+                onWatchLaterClick = { viewModel.toggleWatchLater(videoForMore) },
+                onDownloadClick = { selectedVideoToDownload = videoForMore },
+                onNotInterestedClick = {
+                    Toast.makeText(viewModel.getApplication(), "Marked as Not Interested", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+
+        // --- FLOATING OVERLAY LOTTIE WIDGET & DYNAMIC AI ASSISTANT ---
+        FloatingAiLottieWidget(
+            isMediaPlaying = (viewModel.activeStreamingUrl.isNotEmpty() || viewModel.isPlaying),
+            onSearchRequested = { query ->
+                viewModel.updateSearchQuery(query)
+            },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 90.dp, end = 16.dp)
+                .zIndex(100f)
+        )
     }
 }
 
@@ -1167,7 +1200,7 @@ fun VideoCloudCard(
     isDownloading: Boolean = false,
     onWatchLaterClick: () -> Unit,
     onDownloadClick: () -> Unit,
-    onShareClick: () -> Unit,
+    onMoreOptionsClick: () -> Unit,
     onPlayClick: (CloudVideo) -> Unit
 ) {
     Card(
@@ -1305,7 +1338,7 @@ fun VideoCloudCard(
                             imageUrl = CUSTOM_WATCH_LATER_ICON_URL,
                             contentDescription = "Watch Later",
                             isSelected = isWatchLater,
-                            imageSize = 26.dp,
+                            imageSize = 20.dp,
                             onClick = onWatchLaterClick
                         )
 
@@ -1313,16 +1346,21 @@ fun VideoCloudCard(
                             isLottieDownload = true,
                             isDownloading = isDownloading,
                             contentDescription = "Download Video",
-                            imageSize = 28.dp,
+                            imageSize = 20.dp,
                             onClick = onDownloadClick
                         )
 
-                        AnimatedIconButton(
-                            imageUrl = CUSTOM_SHARE_ICON_URL,
-                            contentDescription = "Share Video",
-                            imageSize = 26.dp,
-                            onClick = onShareClick
-                        )
+                        IconButton(
+                            onClick = onMoreOptionsClick,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More Options",
+                                tint = Color(0xFF334155),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -2096,4 +2134,189 @@ fun LiveLogoIcon(modifier: Modifier = Modifier) {
         modifier = modifier
             .clip(RoundedCornerShape(4.dp))
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VideoMoreOptionsSheet(
+    video: CloudVideo,
+    isWatchLater: Boolean,
+    onDismiss: () -> Unit,
+    onPlayClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onWatchLaterClick: () -> Unit,
+    onDownloadClick: () -> Unit,
+    onNotInterestedClick: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+        ) {
+            // Video Header Preview
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp)
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(video.imageUrl),
+                    contentDescription = video.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = video.title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color(0xFF1E293B),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "${video.creator} • ${video.views} views",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+                }
+            }
+
+            HorizontalDivider(color = Color(0xFFF1F5F9))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Option 1: Play Video
+            MoreOptionRowItem(
+                icon = Icons.Default.PlayCircle,
+                title = "Play Video",
+                subtitle = "Stream video in high quality",
+                onClick = {
+                    onPlayClick()
+                    onDismiss()
+                }
+            )
+
+            // Option 2: Share Video
+            MoreOptionRowItem(
+                icon = Icons.Default.Share,
+                title = "Share Video",
+                subtitle = "Send link to social apps",
+                onClick = {
+                    onShareClick()
+                    onDismiss()
+                }
+            )
+
+            // Option 3: Watch Later
+            MoreOptionRowItem(
+                icon = if (isWatchLater) Icons.Default.BookmarkRemove else Icons.Default.BookmarkAdd,
+                title = if (isWatchLater) "Remove from Watch Later" else "Save to Watch Later",
+                subtitle = "Access anytime from Watch Later list",
+                onClick = {
+                    onWatchLaterClick()
+                    onDismiss()
+                }
+            )
+
+            // Option 4: Download Video
+            MoreOptionRowItem(
+                icon = Icons.Default.CloudDownload,
+                title = "Download Video",
+                subtitle = "Save for offline playback",
+                onClick = {
+                    onDownloadClick()
+                    onDismiss()
+                }
+            )
+
+            // Option 5: Not Interested
+            MoreOptionRowItem(
+                icon = Icons.Default.Block,
+                title = "Not Interested",
+                subtitle = "Hide similar content from feed",
+                onClick = {
+                    onNotInterestedClick()
+                    onDismiss()
+                }
+            )
+
+            // Option 6: Copy Link
+            MoreOptionRowItem(
+                icon = Icons.Default.ContentCopy,
+                title = "Copy Video Link",
+                subtitle = "Copy direct CDN URL to clipboard",
+                onClick = {
+                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("Video Link", video.fileUrl.ifEmpty { "https://youtube.com/watch?v=${video.id}" })
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(context, "Link copied to clipboard!", Toast.LENGTH_SHORT).show()
+                    onDismiss()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun MoreOptionRowItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .padding(vertical = 10.dp, horizontal = 8.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFF0F9FF))
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = Color(0xFF0284C7),
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = Color(0xFF0F172A)
+            )
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = Color(0xFF64748B)
+            )
+        }
+    }
 }

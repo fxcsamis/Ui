@@ -1,0 +1,440 @@
+package com.example.ui.components
+
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.airbnb.lottie.compose.*
+import com.airbnb.lottie.LottieComposition
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
+const val LOTTIE_OVERLAY_1_URL = "https://lottie.host/c8ff3299-4055-482b-88dc-1da2950188cb/1knzg1NsRU.lottie"
+const val LOTTIE_OVERLAY_2_URL = "https://lottie.host/2b5997b8-6637-4730-8755-ae2f561fc4ec/hrOvUSmkO3.lottie"
+const val LOTTIE_AUDIO_3_URL = "https://lottie.host/eb5fcad6-9e03-4ae1-92c3-1521d49cc014/Kx8NZOf9M7.lottie"
+
+data class AiChatMessage(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val text: String,
+    val isUser: Boolean,
+    val timestamp: String = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+)
+
+@Composable
+fun FloatingAiLottieWidget(
+    isMediaPlaying: Boolean,
+    onSearchRequested: (String) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    var showAiChatModal by remember { mutableStateOf(false) }
+    
+    // Smooth auto-alternating state between 1st and 2nd Lottie when idle
+    var idleToggleIndex by remember { mutableStateOf(0) } // 0 -> Lottie 1, 1 -> Lottie 2
+
+    LaunchedEffect(isMediaPlaying) {
+        if (!isMediaPlaying) {
+            while (true) {
+                delay(4500)
+                idleToggleIndex = (idleToggleIndex + 1) % 2
+            }
+        }
+    }
+
+    // Determine current active animation URL
+    val currentAnimationUrl = when {
+        isMediaPlaying -> LOTTIE_AUDIO_3_URL
+        idleToggleIndex == 0 -> LOTTIE_OVERLAY_1_URL
+        else -> LOTTIE_OVERLAY_2_URL
+    }
+
+    // Preload Lottie compositions for fast & smooth transitions
+    val comp1 by rememberLottieComposition(LottieCompositionSpec.Url(LOTTIE_OVERLAY_1_URL))
+    val comp2 by rememberLottieComposition(LottieCompositionSpec.Url(LOTTIE_OVERLAY_2_URL))
+    val comp3 by rememberLottieComposition(LottieCompositionSpec.Url(LOTTIE_AUDIO_3_URL))
+
+    val activeComposition = when (currentAnimationUrl) {
+        LOTTIE_AUDIO_3_URL -> comp3
+        LOTTIE_OVERLAY_1_URL -> comp1
+        else -> comp2
+    }
+
+    var offsetX by remember { mutableStateOf(0f) }
+    var offsetY by remember { mutableStateOf(0f) }
+
+    Box(
+        modifier = modifier
+            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+            .pointerInput(Unit) {
+                detectDragGestures { change, dragAmount ->
+                    change.consume()
+                    offsetX += dragAmount.x
+                    offsetY += dragAmount.y
+                }
+            }
+    ) {
+        // Floating Widget Badge Container
+        Surface(
+            shape = CircleShape,
+            color = Color.White.copy(alpha = 0.95f),
+            shadowElevation = 8.dp,
+            tonalElevation = 4.dp,
+            modifier = Modifier
+                .size(68.dp)
+                .clip(CircleShape)
+                .border(
+                    width = 2.dp,
+                    brush = Brush.linearGradient(
+                        colors = if (isMediaPlaying) listOf(Color(0xFF38BDF8), Color(0xFF0284C7))
+                        else listOf(Color(0xFF0284C7), Color(0xFF3B82F6))
+                    ),
+                    shape = CircleShape
+                )
+                .clickable { showAiChatModal = true }
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Crossfade(
+                    targetState = activeComposition,
+                    animationSpec = tween(350),
+                    label = "LottieCrossfade"
+                ) { targetComp ->
+                    if (targetComp != null) {
+                        val progress by animateLottieCompositionAsState(
+                            composition = targetComp,
+                            iterations = LottieConstants.IterateForever,
+                            isPlaying = true
+                        )
+                        LottieAnimation(
+                            composition = targetComp,
+                            progress = { progress },
+                            modifier = Modifier.size(56.dp)
+                        )
+                    } else {
+                        CircularProgressIndicator(
+                            color = Color(0xFF0284C7),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                // Audio playing visual glow badge
+                if (isMediaPlaying) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF22C55E))
+                    )
+                }
+            }
+        }
+    }
+
+    // AI Dynamic Chat Popup Overlay
+    if (showAiChatModal) {
+        AiAssistantChatDialog(
+            headerLottieComposition = comp2,
+            onDismiss = { showAiChatModal = false },
+            onSearchRequested = onSearchRequested
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AiAssistantChatDialog(
+    headerLottieComposition: LottieComposition?,
+    onDismiss: () -> Unit,
+    onSearchRequested: (String) -> Unit
+) {
+    var inputText by remember { mutableStateOf("") }
+    val messages = remember {
+        mutableStateListOf(
+            AiChatMessage(text = "Hello! I am Cloudihub AI. How can I assist you today? Ask me to find videos, music, or search anything!", isUser = false)
+        )
+    }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    fun sendMessage() {
+        val query = inputText.trim()
+        if (query.isEmpty()) return
+
+        messages.add(AiChatMessage(text = query, isUser = true))
+        inputText = ""
+
+        scope.launch {
+            delay(100)
+            listState.animateScrollToItem(messages.size - 1)
+        }
+
+        // Generate response
+        scope.launch {
+            delay(800)
+            val lower = query.lowercase()
+            val replyText = when {
+                lower.contains("search") || lower.contains("find") -> {
+                    val searchKey = query.replace("search", "", ignoreCase = true).replace("find", "", ignoreCase = true).trim()
+                    if (searchKey.isNotEmpty()) {
+                        onSearchRequested(searchKey)
+                        "I searched for '$searchKey' in Cloudihub for you!"
+                    } else {
+                        "What would you like me to search for on Cloudihub?"
+                    }
+                }
+                lower.contains("hello") || lower.contains("hi") -> "Hello! Ready to explore trending cloud videos, lofi music, or private vault downloads?"
+                lower.contains("download") -> "You can download any video using the download icon on the top bar or video card!"
+                lower.contains("music") -> "Check out our Lofi & Ambient music stream in Cloudihub Music tab!"
+                else -> "Cloudihub AI is here to help! You can search videos, manage private vault files, or stream videos effortlessly."
+            }
+            messages.add(AiChatMessage(text = replyText, isUser = false))
+            delay(100)
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color.White,
+        dragHandle = {
+            BottomSheetDefaults.DragHandle()
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(horizontal = 16.dp)
+        ) {
+            // Header with 2nd Lottie Animation enlarged as AI Avatar
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F9FF)),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(12.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(90.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(2.dp, Color(0xFF38BDF8), CircleShape)
+                    ) {
+                        if (headerLottieComposition != null) {
+                            val headerProgress by animateLottieCompositionAsState(
+                                composition = headerLottieComposition,
+                                iterations = LottieConstants.IterateForever,
+                                isPlaying = true
+                            )
+                            LottieAnimation(
+                                composition = headerLottieComposition,
+                                progress = { headerProgress },
+                                modifier = Modifier.size(80.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.SmartToy,
+                                contentDescription = "AI Avatar",
+                                tint = Color(0xFF0284C7),
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Cloudihub AI Assistant",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF22C55E))
+                            )
+                        }
+                        Text(
+                            text = "Smart cloud video & media copilot",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            color = Color(0xFFE0F2FE),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "Online • Ready to help",
+                                fontSize = 10.sp,
+                                color = Color(0xFF0369A1),
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF64748B)
+                        )
+                    }
+                }
+            }
+
+            // Quick suggestion chips
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            ) {
+                SuggestionChip(
+                    onClick = {
+                        inputText = "Trending videos"
+                        sendMessage()
+                    },
+                    label = { Text("Trending", fontSize = 12.sp) }
+                )
+                SuggestionChip(
+                    onClick = {
+                        inputText = "Lofi music"
+                        sendMessage()
+                    },
+                    label = { Text("Lofi Music", fontSize = 12.sp) }
+                )
+                SuggestionChip(
+                    onClick = {
+                        inputText = "How to download?"
+                        sendMessage()
+                    },
+                    label = { Text("Download guide", fontSize = 12.sp) }
+                )
+            }
+
+            // Chat Messages List
+            LazyColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                items(messages, key = { it.id }) { msg ->
+                    Box(
+                        contentAlignment = if (msg.isUser) Alignment.CenterEnd else Alignment.CenterStart,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Surface(
+                            color = if (msg.isUser) Color(0xFF0284C7) else Color(0xFFF1F5F9),
+                            shape = RoundedCornerShape(
+                                topStart = 16.dp,
+                                topEnd = 16.dp,
+                                bottomStart = if (msg.isUser) 16.dp else 4.dp,
+                                bottomEnd = if (msg.isUser) 4.dp else 16.dp
+                            ),
+                            modifier = Modifier.widthIn(max = 280.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                Text(
+                                    text = msg.text,
+                                    fontSize = 14.sp,
+                                    color = if (msg.isUser) Color.White else Color(0xFF1E293B)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = msg.timestamp,
+                                    fontSize = 10.sp,
+                                    color = if (msg.isUser) Color.White.copy(alpha = 0.7f) else Color(0xFF94A3B8),
+                                    modifier = Modifier.align(Alignment.End)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Input Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    placeholder = { Text("Ask Cloudihub AI...", fontSize = 14.sp) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF0284C7),
+                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                FloatingActionButton(
+                    onClick = { sendMessage() },
+                    containerColor = Color(0xFF0284C7),
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "Send",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
