@@ -96,65 +96,47 @@ fun FloatingAiLottieWidget(
                     offsetY += dragAmount.y
                 }
             }
+            .clickable { showAiChatModal = true }
     ) {
-        // Floating Widget Badge Container
-        Surface(
-            shape = CircleShape,
-            color = Color.White.copy(alpha = 0.95f),
-            shadowElevation = 8.dp,
-            tonalElevation = 4.dp,
-            modifier = Modifier
-                .size(68.dp)
-                .clip(CircleShape)
-                .border(
-                    width = 2.dp,
-                    brush = Brush.linearGradient(
-                        colors = if (isMediaPlaying) listOf(Color(0xFF38BDF8), Color(0xFF0284C7))
-                        else listOf(Color(0xFF0284C7), Color(0xFF3B82F6))
-                    ),
-                    shape = CircleShape
-                )
-                .clickable { showAiChatModal = true }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(110.dp)
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Crossfade(
-                    targetState = activeComposition,
-                    animationSpec = tween(350),
-                    label = "LottieCrossfade"
-                ) { targetComp ->
-                    if (targetComp != null) {
-                        val progress by animateLottieCompositionAsState(
-                            composition = targetComp,
-                            iterations = LottieConstants.IterateForever,
-                            isPlaying = true
-                        )
-                        LottieAnimation(
-                            composition = targetComp,
-                            progress = { progress },
-                            modifier = Modifier.size(56.dp)
-                        )
-                    } else {
-                        CircularProgressIndicator(
-                            color = Color(0xFF0284C7),
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-
-                // Audio playing visual glow badge
-                if (isMediaPlaying) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(4.dp)
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF22C55E))
+            Crossfade(
+                targetState = activeComposition,
+                animationSpec = tween(600),
+                label = "LottieCrossfade"
+            ) { targetComp ->
+                if (targetComp != null) {
+                    val progress by animateLottieCompositionAsState(
+                        composition = targetComp,
+                        iterations = LottieConstants.IterateForever,
+                        isPlaying = true,
+                        speed = 0.6f
+                    )
+                    LottieAnimation(
+                        composition = targetComp,
+                        progress = { progress },
+                        modifier = Modifier.size(110.dp)
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        color = Color(0xFF0284C7),
+                        modifier = Modifier.size(28.dp)
                     )
                 }
+            }
+
+            // Audio playing visual glow badge
+            if (isMediaPlaying) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF22C55E))
+                )
             }
         }
     }
@@ -236,54 +218,69 @@ fun AiAssistantChatDialog(
                 .fillMaxHeight(0.85f)
                 .padding(horizontal = 16.dp)
         ) {
-            // Header with 2nd Lottie Animation enlarged as AI Avatar
+            // Header with 2nd Lottie Animation centered, enlarged, without circle background
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F9FF)),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(12.dp)
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    IconButton(
+                        onClick = onDismiss,
                         modifier = Modifier
-                            .size(90.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                            .border(2.dp, Color(0xFF38BDF8), CircleShape)
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
                     ) {
-                        if (headerLottieComposition != null) {
-                            val headerProgress by animateLottieCompositionAsState(
-                                composition = headerLottieComposition,
-                                iterations = LottieConstants.IterateForever,
-                                isPlaying = true
-                            )
-                            LottieAnimation(
-                                composition = headerLottieComposition,
-                                progress = { headerProgress },
-                                modifier = Modifier.size(80.dp)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.SmartToy,
-                                contentDescription = "AI Avatar",
-                                tint = Color(0xFF0284C7),
-                                modifier = Modifier.size(48.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF64748B)
+                        )
                     }
 
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(140.dp)
+                        ) {
+                            if (headerLottieComposition != null) {
+                                val headerProgress by animateLottieCompositionAsState(
+                                    composition = headerLottieComposition,
+                                    iterations = LottieConstants.IterateForever,
+                                    isPlaying = true,
+                                    speed = 0.6f
+                                )
+                                LottieAnimation(
+                                    composition = headerLottieComposition,
+                                    progress = { headerProgress },
+                                    modifier = Modifier.size(140.dp)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.SmartToy,
+                                    contentDescription = "AI Avatar",
+                                    tint = Color(0xFF0284C7),
+                                    modifier = Modifier.size(64.dp)
+                                )
+                            }
+                        }
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
                             Text(
                                 text = "Cloudihub AI Assistant",
-                                fontSize = 17.sp,
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)
                             )
@@ -295,32 +292,27 @@ fun AiAssistantChatDialog(
                                     .background(Color(0xFF22C55E))
                             )
                         }
+
                         Text(
                             text = "Smart cloud video & media copilot",
                             fontSize = 12.sp,
                             color = Color(0xFF64748B)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
                         Surface(
                             color = Color(0xFFE0F2FE),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
                                 text = "Online • Ready to help",
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 color = Color(0xFF0369A1),
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
                             )
                         }
-                    }
-
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color(0xFF64748B)
-                        )
                     }
                 }
             }
