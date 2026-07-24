@@ -60,6 +60,8 @@ fun VideoStreamingPlayer(
     val streamUrl = viewModel.activeStreamingUrl
     val extractorMsg = viewModel.extractorModeMsg
     val isExtracting = viewModel.isExtracting
+    val downloads by viewModel.downloads.collectAsState()
+    val isVideoDownloading = downloads.any { it.videoId == video.id && (it.status == com.example.ui.DownloadStatus.DOWNLOADING || it.status == com.example.ui.DownloadStatus.QUEUED) }
 
     var isPlayerExpanded by remember { mutableStateOf(true) }
     var isPlaying by remember { mutableStateOf(true) }
@@ -769,11 +771,9 @@ fun VideoStreamingPlayer(
                                         }
                                         .padding(horizontal = 6.dp, vertical = 4.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.CloudDownload,
-                                        contentDescription = "Download",
-                                        tint = Color(0xFF334155),
-                                        modifier = Modifier.size(22.dp)
+                                    LottieDownloadIcon(
+                                        isDownloading = isVideoDownloading,
+                                        size = 24.dp
                                     )
                                     Spacer(modifier = Modifier.height(3.dp))
                                     Text(

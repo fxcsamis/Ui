@@ -72,11 +72,9 @@ fun DownloadsHub(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.CloudDownload,
-                            contentDescription = "Downloads Hub",
-                            tint = Color(0xFF0284C7),
-                            modifier = Modifier.size(24.dp)
+                        LottieDownloadIcon(
+                            isDownloading = downloads.any { it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.QUEUED },
+                            size = 28.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(

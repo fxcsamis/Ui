@@ -85,6 +85,7 @@ import com.example.ui.CloudVideo
 import com.example.ui.CloudihubViewModel
 import com.example.ui.components.CloudShape
 import com.example.ui.components.CloudSkyBackground
+import com.example.ui.components.LottieDownloadIcon
 import com.example.ui.components.NavigationTab
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -325,9 +326,11 @@ fun HomeScreen(
                 } else {
                     items(videos, key = { it.id }) { video ->
                         Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                            val isVideoDownloading = activeDownloads.any { it.videoId == video.id && (it.status == com.example.ui.DownloadStatus.DOWNLOADING || it.status == com.example.ui.DownloadStatus.QUEUED) }
                             VideoCloudCard(
                                 video = video,
                                 isWatchLater = viewModel.isWatchLater(video.id),
+                                isDownloading = isVideoDownloading,
                                 onWatchLaterClick = { viewModel.toggleWatchLater(video) },
                                 onDownloadClick = { selectedVideoToDownload = video },
                                 onShareClick = { selectedVideoToShare = video },
@@ -486,11 +489,9 @@ fun HomeScreen(
                             .size(40.dp)
                             .testTag("download_icon_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = "Downloads",
-                            tint = Color(0xFF0284C7),
-                            modifier = Modifier.size(20.dp)
+                        LottieDownloadIcon(
+                            isDownloading = activeCount > 0,
+                            size = 28.dp
                         )
                     }
 
@@ -857,13 +858,9 @@ fun HomeScreen(
                             onClick = { viewModel.showDownloadHub = true },
                             modifier = Modifier.size(36.dp)
                         ) {
-                            Image(
-                                painter = rememberAsyncImagePainter(CUSTOM_DOWNLOAD_ICON_URL),
-                                contentDescription = "Downloads",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(CircleShape)
+                            LottieDownloadIcon(
+                                isDownloading = activeCount > 0,
+                                size = 26.dp
                             )
                         }
 
@@ -1109,6 +1106,8 @@ const val CUSTOM_WATCH_LATER_ICON_URL = "https://i.postimg.cc/G2tMPzZm/Fast-Deli
 fun AnimatedIconButton(
     icon: ImageVector? = null,
     imageUrl: String? = null,
+    isLottieDownload: Boolean = false,
+    isDownloading: Boolean = false,
     contentDescription: String,
     tint: Color = Color(0xFF64748B),
     imageSize: Dp = 26.dp,
@@ -1131,7 +1130,12 @@ fun AnimatedIconButton(
             .size(38.dp)
             .scale(scale.value)
     ) {
-        if (!imageUrl.isNullOrEmpty()) {
+        if (isLottieDownload) {
+            LottieDownloadIcon(
+                isDownloading = isDownloading,
+                size = imageSize
+            )
+        } else if (!imageUrl.isNullOrEmpty()) {
             Box(contentAlignment = Alignment.Center) {
                 Image(
                     painter = rememberAsyncImagePainter(imageUrl),
@@ -1160,6 +1164,7 @@ fun AnimatedIconButton(
 fun VideoCloudCard(
     video: CloudVideo,
     isWatchLater: Boolean,
+    isDownloading: Boolean = false,
     onWatchLaterClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onShareClick: () -> Unit,
@@ -1305,9 +1310,10 @@ fun VideoCloudCard(
                         )
 
                         AnimatedIconButton(
-                            imageUrl = CUSTOM_DOWNLOAD_ICON_URL,
+                            isLottieDownload = true,
+                            isDownloading = isDownloading,
                             contentDescription = "Download Video",
-                            imageSize = 26.dp,
+                            imageSize = 28.dp,
                             onClick = onDownloadClick
                         )
 
@@ -1984,13 +1990,9 @@ fun DownloadVideoBottomSheet(
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
             ) {
-                Image(
-                    painter = rememberAsyncImagePainter(CUSTOM_DOWNLOAD_ICON_URL),
-                    contentDescription = "Download",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(CircleShape)
+                LottieDownloadIcon(
+                    isDownloading = false,
+                    size = 24.dp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
