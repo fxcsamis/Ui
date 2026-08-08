@@ -1,0 +1,6 @@
+{
+  "name": "Cloudihub",
+  "description": "A modern, cloud-themed premium app with custom organic cloud shapes, dynamic frosted glassmorphic bottom navigation, download hub, voice-activated searching, custom videos, sites and web browsing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
