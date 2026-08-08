@@ -253,16 +253,6 @@ fun VideoStreamingPlayer(
                 Card(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .then(
-                            if (sharedTransitionScope != null) {
-                                with(sharedTransitionScope) {
-                                    Modifier.sharedBounds(
-                                        sharedContentState = rememberSharedContentState(key = "video_pip_${video.id}"),
-                                        animatedVisibilityScope = this@AnimatedContent
-                                    )
-                                }
-                            } else Modifier
-                        )
                         .padding(end = 16.dp, bottom = 90.dp)
                     .offset { IntOffset(pipOffsetX.value.roundToInt(), pipOffsetY.value.roundToInt()) }
                     .width(220.dp)
@@ -425,19 +415,6 @@ fun VideoStreamingPlayer(
                     // 1. TOP VIDEO PLAYER CONTAINER (YouTube 16:9 Aspect Ratio with Swipe-Down Gesture)
                     Box(
                         modifier = Modifier
-                            .then(
-                                if (sharedTransitionScope != null) {
-                                    with(sharedTransitionScope) {
-                                        Modifier.sharedBounds(
-                                            sharedContentState = rememberSharedContentState(key = "video_pip_${video.id}"),
-                                            animatedVisibilityScope = this@AnimatedContent
-                                        )
-                                    }
-                                } else Modifier
-                            )
-                    ) {
-                        Box(
-                        modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(16f / 9f)
                             .offset { IntOffset(0, swipeY.value.roundToInt()) }
@@ -469,16 +446,6 @@ fun VideoStreamingPlayer(
                                     }
                                 )
                             }
-                            .then(
-                                if (sharedTransitionScope != null) {
-                                    with(sharedTransitionScope) {
-                                        Modifier.sharedBounds(
-                                            sharedContentState = rememberSharedContentState(key = "video_hero_${video.id}"),
-                                            animatedVisibilityScope = animatedVisibilityScope
-                                        )
-                                    }
-                                } else Modifier
-                            )
                             .background(Color.Black)
                             .clickable { showControlsOverlay = !showControlsOverlay },
                         contentAlignment = Alignment.Center
@@ -802,7 +769,6 @@ fun VideoStreamingPlayer(
                             }
                         }
                     }
-                }
 
                     // 2. BELOW PLAYER SCROLLABLE FEED (Title, Channel, Action Pills, Up Next)
                     LazyColumn(

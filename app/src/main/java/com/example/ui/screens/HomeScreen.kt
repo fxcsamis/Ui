@@ -1218,22 +1218,6 @@ fun VideoCloudCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1.77f)
-                    .then(
-                        if (sharedTransitionScope != null) {
-                            with(sharedTransitionScope) {
-                                Modifier.sharedElementWithCallerManagedVisibility(
-                                    sharedContentState = rememberSharedContentState(key = "video_hero_${video.id}"),
-                                    visible = !isCurrentlyPlaying,
-                                    boundsTransform = { _, _ ->
-                                        spring(
-                                            stiffness = Spring.StiffnessLow,
-                                            dampingRatio = Spring.DampingRatioNoBouncy
-                                        )
-                                    }
-                                )
-                            }
-                        } else Modifier
-                    )
                     .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .background(Color(0xFFF1F5F9))
                     .clickable {

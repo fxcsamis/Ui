@@ -224,22 +224,12 @@ class MainActivity : FragmentActivity() {
                             } else if (viewModel.showAiFullChatScreen) {
                                 AiCopilotFullChatScreen(viewModel = viewModel)
                             } else {
-                                AnimatedContent(
-                                    targetState = viewModel.activeTab,
-                                    transitionSpec = {
-                                        (fadeIn(animationSpec = tween(220)) +
-                                         scaleIn(initialScale = 0.98f, animationSpec = tween(220)))
-                                            .togetherWith(fadeOut(animationSpec = tween(150)))
-                                    },
-                                    label = "TabSwitchTransition"
-                                ) { tab ->
-                                    when (tab) {
-                                        NavigationTab.Profile -> ProfileScreen(viewModel = viewModel)
-                                        NavigationTab.Home -> HomeScreen(viewModel = viewModel)
-                                        NavigationTab.Music -> MusicScreen(viewModel = viewModel)
-                                        NavigationTab.Hub -> HubScreen(viewModel = viewModel)
-                                        NavigationTab.Browser -> BrowserScreen(viewModel = viewModel)
-                                    }
+                                when (viewModel.activeTab) {
+                                    NavigationTab.Profile -> ProfileScreen(viewModel = viewModel)
+                                    NavigationTab.Home -> HomeScreen(viewModel = viewModel)
+                                    NavigationTab.Music -> MusicScreen(viewModel = viewModel)
+                                    NavigationTab.Hub -> HubScreen(viewModel = viewModel)
+                                    NavigationTab.Browser -> BrowserScreen(viewModel = viewModel)
                                 }
                             }
                         }

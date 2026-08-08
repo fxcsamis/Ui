@@ -1060,24 +1060,12 @@ fun MusicScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
                     ) {
-                        val sharedTransitionScope = LocalSharedTransitionScope.current
-
                         Image(
                             painter = rememberAsyncImagePainter(currentTrack.albumArt),
                             contentDescription = currentTrack.title,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(46.dp)
-                                .then(
-                                    if (sharedTransitionScope != null) {
-                                        with(sharedTransitionScope) {
-                                            Modifier.sharedElementWithCallerManagedVisibility(
-                                                sharedContentState = rememberSharedContentState(key = "music_art_${currentTrack.id}"),
-                                                visible = !isFullPlayerOpen
-                                            )
-                                        }
-                                    } else Modifier
-                                )
                                 .clip(RoundedCornerShape(8.dp))
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -1901,24 +1889,12 @@ fun FullMusicPlayerOverlay(
                     }
 
                     // ALBUM ARTWORK BANNER
-                    val sharedTransitionScope = LocalSharedTransitionScope.current
-
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f, fill = false)
                             .padding(vertical = 8.dp)
                             .aspectRatio(1f)
-                            .then(
-                                if (sharedTransitionScope != null) {
-                                    with(sharedTransitionScope) {
-                                        Modifier.sharedBounds(
-                                            sharedContentState = rememberSharedContentState(key = "music_art_${activeTrack.id}"),
-                                            animatedVisibilityScope = animatedVisibilityScope
-                                        )
-                                    }
-                                } else Modifier
-                            )
                             .shadow(14.dp, RoundedCornerShape(22.dp))
                             .clip(RoundedCornerShape(22.dp))
                     ) {
