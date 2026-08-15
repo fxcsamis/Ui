@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_featured_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_cloud_sky"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- HEADER BRANDING -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:id="@+id/btn_featured_brand"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:contentDescription="CloudiHub"
+                android:src="@drawable/ic_widget_cloud_logo" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="CloudiHub"
+                android:textColor="#0F172A"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- DOWNLOADS BADGE -->
+        <LinearLayout
+            android:id="@+id/btn_featured_downloads"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/widget_badge_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp">
+
+            <ImageView
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:contentDescription="Downloads"
+                android:src="@drawable/ic_widget_download_white" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="Cloud"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- SEARCH BAR -->
+    <LinearLayout
+        android:id="@+id/btn_featured_search"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/widget_search_pill_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="10dp">
+
+        <ImageView
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:contentDescription="Search"
+            android:src="@drawable/ic_widget_search" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Search video, music, or paste URL..."
+            android:textColor="#94A3B8"
+            android:textSize="11sp" />
+
+        <ImageView
+            android:id="@+id/btn_featured_voice"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:background="@drawable/widget_circle_blue"
+            android:clickable="true"
+            android:contentDescription="Voice Search"
+            android:focusable="true"
+            android:padding="3dp"
+            android:src="@drawable/ic_widget_mic" />
+    </LinearLayout>
+
+    <!-- CATEGORIES ROW: 5 ICONS (REPLACED GAME WITH YOUTUBE) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <!-- HOT VIDEO -->
+        <LinearLayout
+            android:id="@+id/btn_featured_hot"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/widget_circle_red"
+                android:contentDescription="Hot Video"
+                android:padding="8dp"
+                android:src="@drawable/ic_widget_hot" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Hot Video"
+                android:textColor="#475569"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- MUSIC -->
+        <LinearLayout
+            android:id="@+id/btn_featured_music"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/widget_circle_blue"
+                android:contentDescription="Music"
+                android:padding="8dp"
+                android:src="@drawable/ic_widget_music" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Music"
+                android:textColor="#475569"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- STREAMS -->
+        <LinearLayout
+            android:id="@+id/btn_featured_trending"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/widget_circle_purple"
+                android:contentDescription="Streams"
+                android:padding="8dp"
+                android:src="@drawable/ic_widget_video" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Streams"
+                android:textColor="#475569"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- SITE -->
+        <LinearLayout
+            android:id="@+id/btn_featured_site"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/widget_circle_green"
+                android:contentDescription="Site"
+                android:padding="8dp"
+                android:src="@drawable/ic_widget_site" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Site"
+                android:textColor="#475569"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- AI COPILOT -->
+        <LinearLayout
+            android:id="@+id/btn_featured_ai"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/img_featured_ai_icon"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/widget_circle_blue"
+                android:contentDescription="AI"
+                android:padding="8dp"
+                android:src="@drawable/ic_widget_ai" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="AI"
+                android:textColor="#475569"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

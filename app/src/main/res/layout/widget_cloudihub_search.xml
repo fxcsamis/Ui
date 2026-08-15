@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_search_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_cloud_sky"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- TOP HEADER & SEARCH BAR -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- LOGO -->
+        <ImageView
+            android:id="@+id/widget_search_logo"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="CloudiHub"
+            android:src="@drawable/ic_widget_cloud_logo" />
+
+        <!-- SEARCH BAR PIL -->
+        <LinearLayout
+            android:id="@+id/btn_compact_search_bar"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_search_pill_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="10dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:contentDescription="Search"
+                android:src="@drawable/ic_widget_search" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Search all your favorites"
+                android:textColor="#64748B"
+                android:textSize="12sp" />
+
+            <ImageView
+                android:id="@+id/btn_compact_voice_mic"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:background="@drawable/widget_circle_blue"
+                android:clickable="true"
+                android:contentDescription="Voice Search"
+                android:focusable="true"
+                android:padding="4dp"
+                android:src="@drawable/ic_widget_mic" />
+        </LinearLayout>
+
+        <!-- DOWNLOADS ACTION BUTTON -->
+        <ImageView
+            android:id="@+id/btn_compact_downloads"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/widget_badge_bg"
+            android:clickable="true"
+            android:contentDescription="Downloads"
+            android:focusable="true"
+            android:padding="7dp"
+            android:src="@drawable/ic_widget_download_white" />
+    </LinearLayout>
+
+    <!-- HORIZONTALLY SCROLLABLE REAL VIDEO CARDS ROW -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <!-- CARD 1 -->
+            <LinearLayout
+                android:id="@+id/btn_card_1"
+                android:layout_width="105dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:orientation="vertical">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="62dp">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/img_video_thumb_1" />
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_centerInParent="true"
+                        android:background="@drawable/widget_circle_play"
+                        android:padding="5dp"
+                        android:src="@drawable/ic_widget_play" />
+                </RelativeLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:text="Trending Concert"
+                    android:textColor="#1E293B"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="CloudiHub Live"
+                    android:textColor="#64748B"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+            <!-- CARD 2 -->
+            <LinearLayout
+                android:id="@+id/btn_card_2"
+                android:layout_width="105dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:orientation="vertical">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="62dp">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/img_video_thumb_2" />
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_centerInParent="true"
+                        android:background="@drawable/widget_circle_play"
+                        android:padding="5dp"
+                        android:src="@drawable/ic_widget_play" />
+                </RelativeLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:text="Chill Lofi Beats"
+                    android:textColor="#1E293B"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Chill Vibes"
+                    android:textColor="#64748B"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+            <!-- CARD 3 -->
+            <LinearLayout
+                android:id="@+id/btn_card_3"
+                android:layout_width="105dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:orientation="vertical">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="62dp"
+                    android:background="@drawable/widget_thumb_1">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_centerInParent="true"
+                        android:background="@drawable/widget_circle_play"
+                        android:padding="5dp"
+                        android:src="@drawable/ic_widget_play" />
+                </RelativeLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:text="Top Movie Trailers"
+                    android:textColor="#1E293B"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Cinema Hits"
+                    android:textColor="#64748B"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+            <!-- CARD 4 -->
+            <LinearLayout
+                android:id="@+id/btn_card_4"
+                android:layout_width="105dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:orientation="vertical">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="62dp"
+                    android:background="@drawable/widget_thumb_2">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_centerInParent="true"
+                        android:background="@drawable/widget_circle_play"
+                        android:padding="5dp"
+                        android:src="@drawable/ic_widget_play" />
+                </RelativeLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:text="Acoustic Session"
+                    android:textColor="#1E293B"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Unplugged"
+                    android:textColor="#64748B"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+</LinearLayout>

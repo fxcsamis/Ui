@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_music_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_music"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- 1. TOP HEADER BAR -->
+    <RelativeLayout
+        android:id="@+id/btn_music_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:contentDescription="Music Logo"
+                android:src="@drawable/ic_widget_music_wave" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="CloudiHub Music"
+                android:textColor="#F8FAFC"
+                android:textSize="13.5sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- DYNAMIC STATUS PILL (PLAYING / OFFLINE) -->
+        <LinearLayout
+            android:id="@+id/widget_music_status_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/widget_music_pill_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp">
+
+            <TextView
+                android:id="@+id/widget_music_status_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="STANDBY"
+                android:textColor="#38BDF8"
+                android:textSize="10.5sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- 2. MIDDLE NOW PLAYING & BACKGROUND CONTROLS CARD -->
+    <LinearLayout
+        android:id="@+id/btn_music_player_card"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/widget_music_card_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <!-- THUMBNAIL / ART SQUIRCLE -->
+        <ImageView
+            android:id="@+id/widget_music_art"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/widget_music_art_bg"
+            android:contentDescription="Album Art"
+            android:padding="10dp"
+            android:src="@drawable/ic_widget_music" />
+
+        <!-- TRACK TITLE & ARTIST -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_music_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Dreamy Stratosphere"
+                android:textColor="#F8FAFC"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_music_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Lofi Sky Beats"
+                android:textColor="#94A3B8"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- STANDALONE WIDGET CONTROLS: PREV, PLAY/PAUSE, NEXT -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- PREVIOUS BUTTON -->
+            <ImageView
+                android:id="@+id/btn_music_prev"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="@drawable/widget_music_btn_bg"
+                android:clickable="true"
+                android:contentDescription="Previous Track"
+                android:focusable="true"
+                android:padding="6dp"
+                android:src="@drawable/ic_widget_prev_slate" />
+
+            <!-- HERO PLAY / PAUSE BUTTON (Plays audio directly from widget) -->
+            <ImageView
+                android:id="@+id/btn_music_play_pause"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/widget_music_play_btn"
+                android:clickable="true"
+                android:contentDescription="Play/Pause Background Audio"
+                android:focusable="true"
+                android:padding="9dp"
+                android:src="@drawable/ic_widget_play" />
+
+            <!-- NEXT BUTTON -->
+            <ImageView
+                android:id="@+id/btn_music_next"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="@drawable/widget_music_btn_bg"
+                android:clickable="true"
+                android:contentDescription="Next Track"
+                android:focusable="true"
+                android:padding="6dp"
+                android:src="@drawable/ic_widget_next_slate" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 3. BOTTOM SHORTCUTS BAR (UNIFIED SINGLE THEME) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- SEARCH MUSIC PILL -->
+        <LinearLayout
+            android:id="@+id/btn_music_search"
+            android:layout_width="0dp"
+            android:layout_height="30dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_music_pill_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="10dp">
+
+            <ImageView
+                android:layout_width="13dp"
+                android:layout_height="13dp"
+                android:contentDescription="Search"
+                android:src="@drawable/ic_widget_search" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="Search Cloud Music..."
+                android:textColor="#94A3B8"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- VOICE BUTTON -->
+        <ImageView
+            android:id="@+id/btn_music_voice"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/widget_music_btn_bg"
+            android:clickable="true"
+            android:contentDescription="Voice Search"
+            android:focusable="true"
+            android:padding="7dp"
+            android:src="@drawable/ic_widget_mic" />
+
+        <!-- SITES / HUB BUTTON -->
+        <ImageView
+            android:id="@+id/btn_music_site"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/widget_music_btn_bg"
+            android:clickable="true"
+            android:contentDescription="Sites"
+            android:focusable="true"
+            android:padding="7dp"
+            android:src="@drawable/ic_widget_site" />
+    </LinearLayout>
+
+</LinearLayout>
