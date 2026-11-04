@@ -13,6 +13,12 @@
   - **"floating avatar off করো"** বললে বন্ধ হয়।
 - ভয়েস → লেখা: ফোনের SpeechRecognizer, লেখা → উত্তর: Gemini, উত্তর → ভয়েস: ফোনের TextToSpeech।
 
+## Olivia ও অর্ব ডিজাইন
+- সহকারীর নাম **Olivia**। "Olivia" বলে ডাকলে সাড়া দেয়, নাম জিজ্ঞেস করলে বলে সে Olivia। "Mic: always on" মোডে Olivia নাম ধরে ডাকলে তবেই জাগে (ডাকার পর ২০ সেকেন্ড কথোপকথন চলে)।
+- **১০টি অর্ব ডিজাইন**: Nebula, Ember, Aurora, Dusk, Gold, Ice, Rose, Mono, Neon, Royal। লং-প্রেস মেনুর "Orb design" থেকে বাছুন।
+- বলেও বদলানো যায়: "ei orb bhalo lagche na", "change the orb", "অন্য অর্ব দাও" বললে পরের ডিজাইন আসে। "red orb", "green orb", "লাল অর্ব" বললে সেই রঙের ডিজাইন আসে।
+- Gemini মডেল বন্ধ হয়ে গেলে অ্যাপ নিজেই Google থেকে নতুন Flash মডেল খুঁজে চালায় (ডিফল্ট `gemini-3.6-flash`)।
+
 ## APK বানানো (পিসি ছাড়া)
 ১. GitHub-এ নতুন রিপো খুলে এই জিপের সব ফাইল আপলোড করুন (`.github` সহ)।
 ২. Actions → **Build Lite Debug APK** → Run workflow।

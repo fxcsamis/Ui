@@ -61,6 +61,7 @@ class FloatingOrbService : Service() {
         override fun onMessage(message: String) {
             main.post { if (!appVisible) Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show() }
         }
+        override fun onOrbDesign(id: String) { orb?.setTheme(id) }
         override fun onFloatingCommand(on: Boolean) {
             if (!on) main.postDelayed({ stopSelf() }, 2500) // let the spoken confirmation finish first
         }
@@ -138,7 +139,7 @@ class FloatingOrbService : Service() {
         val size = (104 * density).toInt()
 
         val orbView = OrbView(applicationContext)
-        orbView.setTheme(OrbView.THEME_DARK)
+        orbView.setTheme(Prefs(applicationContext).orbDesign)
         orbView.setState(engine.state)
         orb = orbView
 

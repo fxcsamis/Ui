@@ -30,6 +30,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
         fun onLevel(level: Float) {}
         fun onMessage(message: String) {}
         fun onFloatingCommand(on: Boolean) {}
+        fun onOrbDesign(id: String) {}
     }
 
     companion object {
@@ -39,6 +40,8 @@ class AssistantEngine private constructor(private val ctx: Context) {
                 instance ?: AssistantEngine(context.applicationContext).also { instance = it }
             }
         private const val MAX_TURNS = 12
+        private const val FOLLOW_UP_WINDOW_MS = 20_000L
+        private val NAME_REGEX = Regex("olivia|oliviya|olivea|ওলিভিয়া|অলিভিয়া|অলিভিয়া|ওলিভিয়া", RegexOption.IGNORE_CASE)
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -60,6 +63,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
     private var token = 0
     private var emptyCount = 0
     private var wordPulse = 0f
+    private var lastInteraction = 0L
 
     init {
         tts = TextToSpeech(ctx) { status ->
@@ -229,6 +233,18 @@ class AssistantEngine private constructor(private val ctx: Context) {
 
     private fun onUserText(text: String) {
         emptyCount = 0
+        val now = System.currentTimeMillis()
+        val heardName = NAME_REGEX.containsMatchIn(text)
+        // Always-on mode behaves like a wake word: ignore talk that is not for Olivia unless a chat is going on.
+        if (prefs.alwaysOn && !heardName && now - lastInteraction > FOLLOW_UP_WINDOW_MS) {
+            main.postDelayed({ if (active && state == OrbView.STATE_LISTENING) listen() }, 200)
+            return
+        }
+        lastInteraction = now
+        if (heardName && NAME_REGEX.replace(text, "").trim(' ', ',', '.', '!', '?', '।').isEmpty()) {
+            speak(if (text.any { it in '\u0980'..'\u09FF' }) "জি, বলুন।" else "Yes, I'm listening.")
+            return
+        }
         if (handleLocalCommand(text)) return
 
         setState(OrbView.STATE_THINKING)
@@ -243,7 +259,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
             var reply: String? = null
             var error: String? = null
             try {
-                reply = GeminiClient.ask(key, model, snapshot)
+                reply = GeminiClient.askWithFallback(key, model, snapshot) { working -> prefs.model = working }
             } catch (e: Exception) {
                 error = e.message ?: "Network error"
             }
@@ -266,6 +282,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
     /** "floating avatar on / off" is handled here, without asking Gemini. */
     private fun handleLocalCommand(text: String): Boolean {
         val t = text.lowercase(Locale.ROOT)
+        if (handleDesignCommand(text, t)) return true
         val about = listOf("floating", "ফ্লোটিং", "overlay", "ওভারলে", "avatar", "অ্যাভাটার", "এভাটার", "ভাসমান")
         if (about.none { t.contains(it) }) return false
         val offWords = listOf(" off", "disable", "stop", "remove", "hide", "close", "বন্ধ", "অফ", "bondho", "band")
@@ -280,6 +297,36 @@ class AssistantEngine private constructor(private val ctx: Context) {
         }
         speak(reply)
         return true
+    }
+
+    /** "change the orb", "I don't like this orb", "red orb" and so on. */
+    private fun handleDesignCommand(text: String, t: String): Boolean {
+        val orbWords = listOf("orb", "অর্ব", "অর্ভ", "design", "ডিজাইন", "colour", "color", "রং", "রঙ", "theme", "থিম", "avatar look")
+        if (orbWords.none { t.contains(it) }) return false
+        if (listOf("floating", "ফ্লোটিং", "overlay", "ওভারলে").any { t.contains(it) }) return false
+
+        val named = OrbDesigns.all.firstOrNull { d -> d.words.any { t.contains(it) } }
+        val changeWords = listOf(
+            "change", "next", "another", "other", "different", "new", "switch", "don't like", "dont like", "not like",
+            "বদল", "পাল্ট", "অন্য", "নতুন", "ভালো লাগ", "ভাল লাগ", "পছন্দ", "bodlao", "bodle", "onno", "bhalo lag", "valo lag", "pochondo"
+        )
+        val id = when {
+            named != null -> named.id
+            changeWords.any { t.contains(it) } -> OrbDesigns.next(prefs.orbDesign)
+            else -> return false
+        }
+        setOrbDesign(id)
+        val bangla = text.any { it in '\u0980'..'\u09FF' }
+        speak(if (bangla) "ঠিক আছে, এই অর্বটা দেখুন।" else "Okay, how about this one?")
+        return true
+    }
+
+    /** Save and show an orb design everywhere (full screen and floating). */
+    fun setOrbDesign(id: String) {
+        main.post {
+            prefs.orbDesign = id
+            listeners.forEach { it.onOrbDesign(id) }
+        }
     }
 
     // ---------------------------------------------------------------- speaking
@@ -308,6 +355,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
 
     private fun onSpeechFinished() {
         stopPulse()
+        lastInteraction = System.currentTimeMillis()
         if (active && state == OrbView.STATE_SPEAKING) {
             emptyCount = 0
             listen()

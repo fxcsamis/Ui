@@ -44,7 +44,7 @@ class OrbView @JvmOverloads constructor(
         const val THEME_CUSTOM = "custom"
 
         private val VALID_STATES = setOf(STATE_IDLE, STATE_LISTENING, STATE_THINKING, STATE_SPEAKING)
-        private val VALID_THEMES = setOf(THEME_LIGHT, THEME_DARK, THEME_RED, THEME_SUNSET)
+        private val VALID_THEMES = setOf(THEME_LIGHT, THEME_DARK, THEME_RED, THEME_SUNSET) + OrbDesigns.all.map { it.id }
         private val HEX_COLOR = Regex("^#[0-9a-fA-F]{6}$")
         private const val AUDIO_MIN_INTERVAL_MS = 66L // ~15 pushes/second is plenty
     }
