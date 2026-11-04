@@ -116,7 +116,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
         main.post { stopNow() }
     }
 
-    /** Tap behaviour: idle -> start, speaking or thinking -> interrupt and listen. The mic is never switched off by a tap. */
+    /** Tap: idle -> start, speaking or thinking -> interrupt and listen, listening -> stop (unless the mic is set to always on). */
     fun toggle() {
         main.post {
             when {
@@ -133,7 +133,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
                     if (history.isNotEmpty()) history.removeAt(history.size - 1)
                     listen()
                 }
-                else -> {} // already listening: the mic stays on
+                else -> if (!prefs.alwaysOn) stopNow() // auto mode: tap while listening = done
             }
         }
     }
@@ -205,14 +205,24 @@ class AssistantEngine private constructor(private val ctx: Context) {
                 SpeechRecognizer.ERROR_RECOGNIZER_BUSY ->
                     main.postDelayed({ if (active && state == OrbView.STATE_LISTENING) listen() }, 500)
                 SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> { postMessage("Microphone permission is needed"); stopNow() }
-                else -> main.postDelayed({ if (active && state == OrbView.STATE_LISTENING) listen() }, 1200)
+                else -> if (prefs.alwaysOn) {
+                    main.postDelayed({ if (active && state == OrbView.STATE_LISTENING) listen() }, 1200)
+                } else {
+                    postMessage("Speech recognition error ($error)")
+                    stopNow()
+                }
             }
         }
     }
 
-    /** Nothing heard: keep the mic open and listen again. */
+    /** Nothing heard. Always-on: keep listening. Auto (like Google Assistant): one more try, then the mic goes off. */
     private fun handleEmpty() {
-        main.postDelayed({ if (active && state == OrbView.STATE_LISTENING) listen() }, 300)
+        emptyCount++
+        if (!prefs.alwaysOn && emptyCount >= 2) {
+            stopNow()
+        } else {
+            main.postDelayed({ if (active && state == OrbView.STATE_LISTENING) listen() }, 300)
+        }
     }
 
     // ---------------------------------------------------------------- thinking
@@ -247,7 +257,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
                 } else {
                     if (history.isNotEmpty()) history.removeAt(history.size - 1)
                     postMessage(failure ?: "Something went wrong")
-                    listen()
+                    if (prefs.alwaysOn) listen() else stopNow()
                 }
             }
         }.start()

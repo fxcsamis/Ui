@@ -188,6 +188,7 @@ class MainActivity : Activity() {
             "Gemini API key",
             "Model: ${prefs.model}",
             "Voice language: $langName",
+            if (prefs.alwaysOn) "Mic: always on (tap to switch to auto)" else "Mic: auto on/off like Google Assistant (tap for always on)",
             if (floatingOn) "Floating avatar: ON (tap to turn off)" else "Floating avatar: OFF (tap to turn on)"
         )
         dialog = AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
@@ -197,7 +198,12 @@ class MainActivity : Activity() {
                     0 -> showKeyDialog(firstTime = false)
                     1 -> showModelDialog()
                     2 -> showLanguageDialog()
-                    3 -> if (FloatingOrbService.running) FloatingOrbService.stop(this) else enableFloating()
+                    3 -> {
+                        prefs.alwaysOn = !prefs.alwaysOn
+                        Toast.makeText(this, if (prefs.alwaysOn) "Mic stays on" else "Mic turns off after silence", Toast.LENGTH_SHORT).show()
+                        if (prefs.alwaysOn) engine.start()
+                    }
+                    4 -> if (FloatingOrbService.running) FloatingOrbService.stop(this) else enableFloating()
                 }
             }
             .show()

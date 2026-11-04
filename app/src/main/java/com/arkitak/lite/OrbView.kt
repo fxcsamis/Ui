@@ -66,11 +66,6 @@ class OrbView @JvmOverloads constructor(
         clipChildren = false
         clipToPadding = false
 
-        val density = resources.displayMetrics.density
-        val haloSize = (260 * density).toInt()
-        val halo = View(context).apply { setBackgroundResource(R.drawable.bg_orb_halo) }
-        addView(halo, LayoutParams(haloSize, haloSize, Gravity.CENTER))
-
         addView(
             webView,
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, Gravity.CENTER)

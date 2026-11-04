@@ -19,6 +19,11 @@ class Prefs(context: Context) {
         get() = sp.getString("lang", "auto") ?: "auto"
         set(value) { sp.edit().putString("lang", value).apply() }
 
+    /** false = auto on/off like Google Assistant (default), true = mic never switches itself off. */
+    var alwaysOn: Boolean
+        get() = sp.getBoolean("always_on", false)
+        set(value) { sp.edit().putBoolean("always_on", value).apply() }
+
     companion object {
         const val DEFAULT_MODEL = "gemini-2.5-flash"
     }

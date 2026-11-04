@@ -28,6 +28,7 @@ button.on{color:#fff;background:linear-gradient(135deg,var(--t1),var(--t2));box-
 #toast{position:fixed;left:50%;bottom:110px;transform:translate(-50%,20px);opacity:0;background:#1d2340;color:#fff;font-size:13px;padding:10px 16px;border-radius:12px;transition:all .3s;pointer-events:none;max-width:90vw;text-align:center}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 /* Hide all HTML panels immediately so they never flash */
+#shadow,
 #themes,
 #panel,
 #status,
@@ -108,11 +109,16 @@ void main(){
  float base=length(position);vec3 d=position/base;float t=uTime;
  float n=sin(d.x*3.+t*.8+aRnd*6.)*sin(d.y*3.-t*.6)*sin(d.z*3.+t*.5);
  float r=base*(1.+n*.05+uAmp*.1*aRnd+.015*sin(t*2.+aRnd*20.));
- vec4 mv=modelViewMatrix*vec4(d*r,1.);
+ /* every dot slowly circles its own axis, so the lights drift up, over and down */
+ float k=aRnd*43.17;vec3 ax=normalize(vec3(cos(k),.35*sin(k*1.7),sin(k)));
+ float ang=t*(aRnd-.5)*.55;float cs=cos(ang),sn=sin(ang);
+ vec3 q=d*r;q=q*cs+cross(ax,q)*sn+ax*dot(ax,q)*(1.-cs);
+ vec3 dd=q/max(r,.001);
+ vec4 mv=modelViewMatrix*vec4(q,1.);
  float depth=smoothstep(-1.,1.,mv.z+uCamZ);          /* 0 = back, 1 = front */
- vA=mix(.22,1.,depth);
- vec3 c=mix(BLUE,CYAN,smoothstep(-.5,.9,d.y+n)*uCyan);
- c=mix(c,PURP,smoothstep(.1,.9,d.x*.6-d.y*.3+aRnd*.4)*uPurple);
+ vA=mix(.22,1.,depth)*mix(.5,1.,smoothstep(.45,.95,base))*(1.-smoothstep(.98,1.12,base))*(.82+.18*sin(t*1.4+aRnd*40.));
+ vec3 c=mix(BLUE,CYAN,smoothstep(-.5,.9,dd.y+n)*uCyan);
+ c=mix(c,PURP,smoothstep(.1,.9,dd.x*.6-dd.y*.3+aRnd*.4)*uPurple);
  c=mix(DEEP,c,.5+.5*aRnd);
  vC=c*uBright*mix(.6,1.,depth);
  gl_PointSize=max((.009+aRnd*.017)*(1.+uAmp*.5)*uPx/(-mv.z)*mix(.85,1.2,depth),1.7);
@@ -122,7 +128,7 @@ function buildParticles(){
   const pos=new Float32Array(COUNT*3),rnd=new Float32Array(COUNT);
   for(let i=0;i<COUNT;i++){
     const y=1-2*(i+.5)/COUNT,r=Math.sqrt(1-y*y),th=i*2.39996;
-    const shell=.93+.07*Math.random();   /* outer skin + filled interior */
+    const shell=i%9<5?.93+.17*Math.random():.14+.8*Math.cbrt(Math.random());   /* outer skin + filled interior */
     pos.set([Math.cos(th)*r*shell,y*shell,Math.sin(th)*r*shell],i*3);rnd[i]=Math.random();
   }
   const g=new THREE.BufferGeometry();
@@ -142,9 +148,9 @@ function createGlow(){
     vertexShader:"varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
     fragmentShader:`varying vec2 vUv;uniform float uTime,uStrength,uMix;uniform vec3 uA,uB,uC;
 void main(){vec2 c=vUv-.5;float d=length(c)*2.,a=atan(c.y,c.x);
- float g=(d>.68?exp(-(d-.68)*6.5)*.75:0.)*smoothstep(1.,.78,d);
+ float g=(d>.68?exp(-(d-.68)*6.5)*.75:(.22+.78*pow(d/.68,2.))*.75)*smoothstep(1.,.78,d);
  vec3 col=mix(mix(uA,uB,.5+.5*sin(a+uTime*.4)),uC,uMix*(.5+.5*sin(a*2.-uTime*.6)));
- gl_FragColor=vec4(col,clamp(g*uStrength*.5,0.,.55));}`,
+ gl_FragColor=vec4(col,clamp(g*uStrength*.55,0.,.6));}`,
     transparent:true,depthWrite:false,depthTest:false,uniforms:{uTime:{value:0},uStrength:{value:.5},uMix:{value:.3},uA:U.BLUE,uB:U.PURP,uC:U.CYAN}});
   glow=new THREE.Mesh(new THREE.PlaneGeometry(VIS,VIS),glowMat);glow.position.z=-.05;glow.renderOrder=-2;scene.add(glow);
 }
