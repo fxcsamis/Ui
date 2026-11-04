@@ -12,8 +12,11 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.OvershootInterpolator
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -31,6 +34,8 @@ class MainActivity : Activity() {
     private lateinit var prefs: Prefs
     private var dialog: AlertDialog? = null
     private var afterMic: (() -> Unit)? = null
+    private lateinit var scaleDetector: ScaleGestureDetector
+    private var pinching = false
 
     private val REQ_MIC = 11
     private val REQ_OVERLAY = 12
@@ -60,9 +65,24 @@ class MainActivity : Activity() {
 
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         orb = OrbView(this)
-        val size = (resources.displayMetrics.widthPixels * 1.1f).toInt()
+        val size = (resources.displayMetrics.widthPixels * 0.9f).toInt()
         root.addView(orb, FrameLayout.LayoutParams(size, size, Gravity.CENTER))
         setContentView(root)
+
+        // Pinch to make the orb smaller or bigger; let go and it bounces back to its normal size.
+        scaleDetector = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+                orb.animate().cancel()
+                return true
+            }
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                val s = (orb.scaleX * detector.scaleFactor).coerceIn(0.4f, 2.4f)
+                orb.scaleX = s
+                orb.scaleY = s
+                return true
+            }
+            override fun onScaleEnd(detector: ScaleGestureDetector) { springBack() }
+        })
 
         orb.setTheme(OrbView.THEME_DARK)
         orb.onOrbTap = { onOrbTap() }
@@ -110,6 +130,34 @@ class MainActivity : Activity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideSystemBars()
+    }
+
+    private fun springBack() {
+        orb.animate().scaleX(1f).scaleY(1f).setDuration(500)
+            .setInterpolator(OvershootInterpolator(1.6f)).start()
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        scaleDetector.onTouchEvent(ev)
+        if (ev.pointerCount > 1 || scaleDetector.isInProgress) {
+            if (!pinching) {
+                pinching = true
+                // Cancel whatever the orb had started (drag, tap) so two fingers only resize.
+                val cancel = MotionEvent.obtain(ev)
+                cancel.action = MotionEvent.ACTION_CANCEL
+                super.dispatchTouchEvent(cancel)
+                cancel.recycle()
+            }
+            return true
+        }
+        if (pinching) {
+            if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                pinching = false
+                springBack()
+            }
+            return true
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     @Suppress("DEPRECATION")
