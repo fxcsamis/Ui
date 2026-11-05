@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Floating avatar: shown on top of other apps (asked once, with an explanation) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application
+        android:name=".ArkitakApp"
+        android:allowBackup="false"
+        android:icon="@drawable/ic_launcher_orb"
+        android:label="ARKITAK Lite"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".AvatarPickerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- Wake word: the one Wake screen (also the "settings" screen of the assistant service) -->
+        <activity
+            android:name=".wake.WakeSettingsActivity"
+            android:exported="true"
+            android:label="Wake word"
+            android:screenOrientation="portrait" />
+
+        <!-- Manual trigger: ASSIST / VOICE_COMMAND entry, transparent, closes itself. Also the target of the tile and the widget. -->
+        <activity
+            android:name=".wake.ArkitakAssistActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_COMMAND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Engine A: voice interaction service. Android binds it only when ARKITAK Lite is the default digital assistant. -->
+        <service
+            android:name=".wake.ArkitakVoiceInteractionService"
+            android:exported="true"
+            android:label="ARKITAK Lite"
+            android:permission="android.permission.BIND_VOICE_INTERACTION">
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/arkitak_interaction_service" />
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".wake.ArkitakVoiceInteractionSessionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
+
+        <!-- Stub recognizer that the assistant picker may expect; it recognizes nothing -->
+        <service
+            android:name=".wake.ArkitakRecognitionService"
+            android:exported="true"
+            android:label="ARKITAK (assistant stub)">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
+        <!-- Engine B: Vosk wake word, microphone foreground service (started only from a visible screen) -->
+        <service
+            android:name=".wake.VoskWakeService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <!-- Engine C: Quick Settings tile and home widget -->
+        <service
+            android:name=".wake.ArkitakTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_launcher_orb"
+            android:label="ARKITAK"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".wake.ArkitakWidgetProvider"
+            android:exported="true"
+            android:label="Talk to ARKITAK">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/arkitak_widget_info" />
+        </receiver>
+
+        <activity
+            android:name=".GeminiSettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- Mic always on: keeps the live conversation running when the app is not on screen -->
+        <service
+            android:name=".LiveMicService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <service
+            android:name=".FloatingOrbService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+    </application>
+</manifest>

@@ -1,0 +1,332 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Glass Orb</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;background:transparent;overflow:hidden}
+canvas{display:block;width:100%;height:100%;background:transparent;touch-action:none}
+</style></head><body>
+<script>
+/*
+ * Glass orb with a face (transparent background) for the floating avatar and the avatar picker.
+ * URL: glass_orb.html?mode=avatar|picker&design=<id>&auto=0|1
+ * API (same names as the particle orb): window.JarvisOrb.setState / setExternalAudio / setDesign / setAuto
+ * Three.js: tries assets/three.r159.min.js, then the jsDelivr CDN (r159), then the bundled r128 as a plainer fallback.
+ */
+(function(){
+'use strict';
+var Q=new URLSearchParams(location.search);
+var PICKER=Q.get('mode')==='picker';
+var pending={state:'idle',design:Q.get('design')||'crystal',auto:Q.get('auto')==='1'};
+var impl=null;
+window.JarvisOrb={
+  setState:function(s){pending.state=s;if(impl)impl.setState(s);},
+  setDesign:function(d){pending.design=d;if(impl)impl.setDesign(d);},
+  setAuto:function(on){pending.auto=!!on;if(impl)impl.setAuto(!!on);},
+  pulse:function(hex){if(impl)impl.pulse(hex);},
+  setExternalAudio:function(a){if(impl)impl.audio(+a||0);},
+  setTheme:function(){},setBackground:function(){},setUserScale:function(){}
+};
+
+var SRCS=['three.r159.min.js','https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js','three.min.js'];
+var started=false;
+function tryLoad(i){
+  if(started||i>=SRCS.length)return;
+  var s=document.createElement('script'),moved=false;
+  function next(){if(moved)return;moved=true;tryLoad(i+1);}
+  s.onload=function(){if(window.THREE&&!started){moved=true;start(window.THREE);}else next();};
+  s.onerror=next;
+  setTimeout(function(){if(!started)next();},7000);
+  s.src=SRCS[i];document.head.appendChild(s);
+}
+tryLoad(0);
+
+// id: {a,b = glass colours, eye, shell = rim light, flow = colours drift between a and b, rings, orbit, sparkle, ripple, beat}
+var DESIGNS={
+  crystal :{a:0xffffff,b:0xffffff,eye:0x7cc4ff,shell:0x9fc4ff,rings:true},
+  ruby    :{a:0xd0102a,b:0xd0102a,eye:0xff7a8c,shell:0xff2a45,rings:true,beat:true},
+  amber   :{a:0xffb300,b:0xffb300,eye:0xffd978,shell:0xffb300,rings:false,orbit:true},
+  sapphire:{a:0x1f5cff,b:0x1f5cff,eye:0x9dbbff,shell:0x2f6bff,rings:true,ripple:true},
+  ember   :{a:0xd0102a,b:0xffb300,flow:true,rings:true},
+  twilight:{a:0xffb300,b:0x1f5cff,flow:true,rings:false,orbit:true},
+  nebula  :{a:0x1f5cff,b:0xd0102a,flow:true,rings:false,ripple:true,sparkle:true},
+  emerald :{a:0x12d68a,b:0x00b8d9,flow:true,rings:true,sparkle:true}
+};
+
+function start(T){
+  if(started)return;started=true;
+  var REV=parseInt(T.REVISION,10)||0,MODERN=REV>=150;
+  var renderer;
+  try{renderer=new T.WebGLRenderer({antialias:true,alpha:true,premultipliedAlpha:true});}catch(e){return;}
+  renderer.setClearColor(0x000000,0);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,PICKER?2:1.75));
+  renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+  document.body.appendChild(renderer.domElement);
+  var scene=new T.Scene(); // no background: the canvas is transparent
+  var camera=new T.PerspectiveCamera(32,1,0.1,50);camera.position.set(0,0,8);
+  function srgb(t){if(T.SRGBColorSpace)t.colorSpace=T.SRGBColorSpace;else if(T.sRGBEncoding)t.encoding=T.sRGBEncoding;return t;}
+
+  // studio environment: soft lights at the sides and behind, so highlights touch only the rim
+  var envScene=new T.Scene();
+  envScene.add(new T.Mesh(new T.BoxGeometry(30,30,30),new T.MeshBasicMaterial({color:0x8a93ac,side:T.BackSide})));
+  function lightBox(c,k,x,y,z,w,h){var m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({color:new T.Color(c).multiplyScalar(k),side:T.DoubleSide}));m.position.set(x,y,z);m.lookAt(0,0,0);envScene.add(m);}
+  lightBox(0xffffff,6,-13,7,-3,8,5);lightBox(0xdbe9ff,5,14,0,-3,2.4,12);lightBox(0xffffff,4,0,12,-4,10,3);
+  var pm=new T.PMREMGenerator(renderer);
+  scene.environment=pm.fromScene(envScene,0.03).texture;
+
+  var glass=new T.MeshPhysicalMaterial(MODERN?
+    {color:0xffffff,transmission:1,thickness:0.3,roughness:0.015,ior:1.25,iridescence:0.6,iridescenceIOR:1.4,iridescenceThicknessRange:[200,800],clearcoat:1,clearcoatRoughness:0.04,envMapIntensity:1.6,specularIntensity:1}:
+    {color:0xffffff,transparent:true,opacity:0.2,roughness:0.05,metalness:0,clearcoat:1,clearcoatRoughness:0.04,envMapIntensity:1.6});
+  var glass1=glass.clone(),glass2=glass.clone();
+  if(!MODERN){glass1.opacity=0.5;glass2.opacity=0.5;}
+  var key=new T.DirectionalLight(0xffffff,1.1);key.position.set(-3,4,7);scene.add(key);
+  var fill=new T.DirectionalLight(0xbfd8ff,0.35);fill.position.set(4,-1,5);scene.add(fill);
+  scene.add(new T.AmbientLight(0xffffff,0.35));
+
+  var head=new T.Group();scene.add(head);
+  head.add(new T.Mesh(new T.SphereGeometry(1.25,72,54),glass));
+
+  // fresnel rim light + faint body tint so the glass reads on any background
+  var shellU={uColor:{value:new T.Color(0x9fc4ff)},uK:{value:1},uG:{value:MODERN?0.4545:1.0}};
+  var shell=new T.Mesh(new T.SphereGeometry(1.262,64,48),new T.ShaderMaterial({
+    uniforms:shellU,transparent:true,depthWrite:false,blending:T.AdditiveBlending,
+    vertexShader:'varying vec3 vN;varying vec3 vV;void main(){vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vV=-mv.xyz;gl_Position=projectionMatrix*mv;}',
+    fragmentShader:'uniform vec3 uColor;uniform float uK;uniform float uG;varying vec3 vN;varying vec3 vV;void main(){float f=pow(1.0-abs(dot(normalize(vN),normalize(vV))),2.6);float a=(0.05+f*0.9)*uK;gl_FragColor=vec4(pow(uColor,vec3(uG)),a);}'
+  }));
+  head.add(shell);
+
+  var ring=new T.Mesh(new T.TorusGeometry(1.5,0.075,40,160),glass1);ring.rotation.set(1.25,0.3,0.45);scene.add(ring);
+  var ring2=new T.Mesh(new T.TorusGeometry(1.42,0.045,32,160),glass2);ring2.rotation.set(1.9,-0.4,-0.6);scene.add(ring2);
+
+  // sound ripples
+  var ripples=[];
+  for(var ri=0;ri<5;ri++){var rm=new T.Mesh(new T.RingGeometry(0.978,1,96),new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false,side:T.DoubleSide}));rm.position.z=-0.4;rm.visible=false;scene.add(rm);ripples.push({m:rm,age:9,str:0});}
+  var nextRip=0;
+
+  // orbiting beads
+  var orbit=new T.Group();orbit.rotation.set(1.15,0.3,0);scene.add(orbit);
+  var beadMat=new T.MeshBasicMaterial({color:0xffffff});
+  var beads=[];
+  for(var bi=0;bi<3;bi++){var bm=new T.Mesh(new T.SphereGeometry(0.075,20,14),beadMat);orbit.add(bm);beads.push(bm);}
+  orbit.visible=false;
+
+  // sparkles
+  var spN=46,spPos=new Float32Array(spN*3);
+  for(var si=0;si<spN;si++){var sr=1.65+Math.random()*0.5,th=Math.random()*6.283,ph=Math.acos(2*Math.random()-1);
+    spPos[si*3]=sr*Math.sin(ph)*Math.cos(th);spPos[si*3+1]=sr*Math.cos(ph)*0.9;spPos[si*3+2]=sr*Math.sin(ph)*Math.sin(th)*0.6-0.2;}
+  var spGeo=new T.BufferGeometry();spGeo.setAttribute('position',new T.BufferAttribute(spPos,3));
+  var spMat=new T.PointsMaterial({size:0.05,color:0xffffff,transparent:true,opacity:0.8,depthWrite:false,blending:T.AdditiveBlending});
+  var sparkles=new T.Points(spGeo,spMat);sparkles.visible=false;scene.add(sparkles);
+
+  // ---- face ----
+  var accent=new T.Color(0x59d0ff);
+  var glow=new T.MeshStandardMaterial({color:0x06101c,emissive:accent,emissiveIntensity:1.3,roughness:0.25,metalness:0});
+  var whiteMat=new T.MeshBasicMaterial({color:new T.Color(0xffffff).multiplyScalar(2.4)});
+  var dark=new T.MeshPhysicalMaterial({color:0x05060a,roughness:0.18,clearcoat:1,clearcoatRoughness:0.08});
+  var lidMat=new T.MeshStandardMaterial({color:0x1d2438,roughness:0.5});
+  var sockMat=new T.MeshStandardMaterial({color:0x0a1020,roughness:0.45});
+  var face=new T.Group();face.position.z=1.0;head.add(face);
+  function irisTexture(){
+    var c=document.createElement('canvas');c.width=c.height=256;var x=c.getContext('2d');
+    var g=x.createRadialGradient(128,128,8,128,128,128);
+    g.addColorStop(0,'#ffffff');g.addColorStop(0.32,'#f4f4f4');g.addColorStop(0.62,'#bcbcbc');g.addColorStop(0.85,'#8c8c8c');g.addColorStop(0.94,'#3c3c3c');g.addColorStop(1,'#101010');
+    x.fillStyle=g;x.fillRect(0,0,256,256);
+    for(var i=0;i<170;i++){var an=i*0.0369+Math.sin(i*12.9)*0.02,r0=34+((i*37)%18),r1=r0+36+((i*53)%48);
+      x.strokeStyle='rgba('+(i%2?'0,0,0':'255,255,255')+','+(0.06+((i*29)%10)/70)+')';x.lineWidth=1+(i%3)*0.6;
+      x.beginPath();x.moveTo(128+Math.cos(an)*r0,128+Math.sin(an)*r0);x.lineTo(128+Math.cos(an)*r1,128+Math.sin(an)*r1);x.stroke();}
+    var t=new T.CanvasTexture(c);srgb(t);t.anisotropy=4;return t;
+  }
+  var irisTex=irisTexture();
+  var eyeMat=new T.MeshPhysicalMaterial({map:irisTex,color:0x7cc4ff,emissiveMap:irisTex,emissive:0x7cc4ff,emissiveIntensity:0.5,roughness:0.28,clearcoat:1,clearcoatRoughness:0.05});
+  function makeEye(x){
+    var g=new T.Group();g.position.set(x,0.2,0);
+    var sock=new T.Mesh(new T.CircleGeometry(1,48),sockMat);sock.scale.set(0.182,0.212,1);sock.position.z=0.045;g.add(sock);
+    var iris=new T.Mesh(new T.CircleGeometry(1,64),eyeMat);iris.scale.set(0.162,0.192,1);iris.position.z=0.055;g.add(iris);
+    var lid=new T.Mesh(new T.TorusGeometry(0.19,0.0075,8,48,Math.PI*0.8),lidMat);lid.rotation.z=Math.PI*0.1;lid.position.set(0,0.03,0.06);lid.scale.set(1,0.9,1);g.add(lid);
+    var look=new T.Group();look.position.z=0.05;g.add(look);
+    var pupil=new T.Mesh(new T.SphereGeometry(1,40,28),dark);pupil.scale.set(0.075,0.1,0.03);look.add(pupil);
+    var hl=new T.Mesh(new T.SphereGeometry(1,20,14),whiteMat);hl.scale.set(0.03,0.03,0.012);hl.position.set(-0.03,0.045,0.04);look.add(hl);
+    var hl2=new T.Mesh(new T.SphereGeometry(1,16,12),whiteMat);hl2.scale.set(0.013,0.013,0.008);hl2.position.set(0.03,-0.04,0.036);look.add(hl2);
+    face.add(g);return {g:g,look:look,pupil:pupil,bx:x};
+  }
+  var eyeL=makeEye(-0.43),eyeR=makeEye(0.43);
+  var mouth=new T.Group();mouth.position.set(0,-0.36,0.0);face.add(mouth);
+  var smile=new T.Mesh(new T.TorusGeometry(0.17,0.014,14,60,Math.PI),glow);smile.rotation.z=Math.PI;smile.position.y=0.06;mouth.add(smile);
+  var rim=new T.Mesh(new T.SphereGeometry(1,40,28),glow);rim.position.z=-0.02;mouth.add(rim);
+  var cav=new T.Mesh(new T.SphereGeometry(1,40,28),dark);cav.position.z=0.0;mouth.add(cav);
+  var tongue=new T.Mesh(new T.SphereGeometry(1,24,18),new T.MeshPhysicalMaterial({color:0xff8ec2,emissive:0xff5fa5,emissiveIntensity:0.35,roughness:0.3,clearcoat:0.8,clearcoatRoughness:0.15}));tongue.position.z=0.03;mouth.add(tongue);
+
+  function size(){var w=window.innerWidth||300,h=window.innerHeight||300;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+  size();window.addEventListener('resize',size);
+
+  // ---- design / colours ----
+  var colA=new T.Color(0xffffff),colB=new T.Color(0xffffff),tint=new T.Color(),eyeT=new T.Color(0x7cc4ff),WHITE=new T.Color(0xffffff),shellC=new T.Color(0x9fc4ff);
+  var cfg=DESIGNS.crystal,id='crystal',flow=false;
+  function applyTint(cf){
+    tint.copy(colA).lerp(colB,cf);
+    if(id==='crystal'){
+      eyeT.setHex(0x7cc4ff);shellC.setHex(cfg.shell);
+      glass.color.copy(WHITE);glass1.color.copy(WHITE);glass2.color.copy(WHITE);
+      glow.color.setHex(0x1b2440);glow.emissive.setHex(0x000000);
+    }else{
+      if(flow){eyeT.copy(tint).lerp(WHITE,0.35);shellC.copy(tint).lerp(WHITE,0.1);}
+      else{eyeT.setHex(cfg.eye);shellC.setHex(cfg.shell);}
+      glass.color.copy(WHITE).lerp(tint,0.2);
+      glass1.color.copy(WHITE).lerp(colA,0.3);glass2.color.copy(WHITE).lerp(colB,0.3);
+      glow.color.setHex(0x06101c);glow.emissive.copy(eyeT);
+    }
+    if(MODERN&&glass.attenuationColor){
+      var far=(id==='crystal');
+      glass.attenuationColor.copy(tint);glass.attenuationDistance=far?Infinity:0.55;glass.iridescence=far?0.6:0.2;
+      glass1.attenuationColor.copy(colA);glass1.attenuationDistance=far?Infinity:0.3;
+      glass2.attenuationColor.copy(colB);glass2.attenuationDistance=far?Infinity:0.3;
+    }
+    shellU.uColor.value.copy(shellC);
+    eyeMat.color.copy(eyeT);eyeMat.emissive.copy(eyeT);
+    beadMat.color.copy(eyeT).multiplyScalar(1.8);
+    spMat.color.copy(eyeT);
+  }
+  function setDesign(n){
+    var d=DESIGNS[n];if(!d)return;
+    id=n;cfg=d;flow=!!d.flow;
+    colA.setHex(d.a);colB.setHex(d.b);
+    shellU.uK.value=(n==='crystal')?0.8:1.0;
+    sparkles.visible=!!d.sparkle;orbit.visible=!!d.orbit;
+    applyTint(0);
+  }
+
+  // ---- state / audio ----
+  var state='idle',auto=!!pending.auto,autoT=0,ext=0,extAt=0,sim=PICKER;
+  var SEQ=[['listening',4.5],['thinking',2.8],['speaking',5.5],['idle',2]],SEQ_LEN=14.8;
+  function setState(n){if(['idle','listening','thinking','speaking'].indexOf(n)>=0)state=n;}
+  var flash=0,flashC=new T.Color(0xffffff);
+  impl={pulse:function(hex){flashC.setHex(hex>>>0&0xffffff);flash=1;},setState:setState,setDesign:setDesign,setAuto:function(on){auto=on;autoT=0;},audio:function(v){ext=Math.max(0,Math.min(1,v));extAt=performance.now();}};
+
+  function sample(t){
+    var r;
+    if(sim){
+      if(state==='speaking'){
+        var p=t%7.5,ph=p*4.3,idx=Math.floor(ph),f=ph-idx,env=Math.pow(Math.sin(Math.PI*f),0.8);
+        var q=Math.sin(idx*12.9898)*43758.5453;q-=Math.floor(q);
+        r={level:(p<6.6?env*(0.35+0.65*q)*((idx%7===6)?0.08:1):0),v:0.5+0.5*Math.sin(idx*7.7)};
+      }else if(state==='listening'){
+        var u=t%3.6;
+        r={level:u<2.5?0.2+0.6*Math.abs(Math.sin(u*5.5))*(0.6+0.4*Math.sin(u*1.7+1)):0.08,v:0.5};
+      }else r={level:0,v:0.5};
+    }else{
+      var now=performance.now();
+      r={level:(now-extAt<400)?Math.min(1,ext*1.3):0,v:0.5+0.4*Math.sin(t*5.1)};
+      if(state==='speaking'&&now-extAt>700){ // no level feed: still move the lips like speech
+        var p2=t%7.5,ph2=p2*4.3,i2=Math.floor(ph2),f2=ph2-i2,env2=Math.pow(Math.sin(Math.PI*f2),0.8);
+        var q2=Math.sin(i2*12.9898)*43758.5453;q2-=Math.floor(q2);
+        r.level=env2*(0.3+0.5*q2)*((i2%7===6)?0.1:1);
+      }
+    }
+    if(state==='idle'||state==='thinking')r={level:0,v:0.5};
+    return r;
+  }
+
+  // ---- pointer: the head leans toward your finger (picker) ----
+  var px=0,py=0;
+  function onPtr(e){px=Math.max(-1,Math.min(1,(e.clientX/window.innerWidth-0.5)*2));py=Math.max(-1,Math.min(1,(e.clientY/window.innerHeight-0.5)*2));}
+  window.addEventListener('pointermove',onPtr);window.addEventListener('pointerdown',onPtr);
+  window.addEventListener('pointerup',function(){px=0;py=0;});
+
+  // ---- animation ----
+  var tt=0,m=0,vowel=0.5,nextBlink=1.5,blinkP=-1,dbl=false,gx=0,gy=0,tgx=0,tgy=0,nextSacc=1,lvl=0,dil=1,s1=1,s2=0,flat=1;
+  var clock=new T.Clock();
+  function spawnRipple(str){for(var k=0;k<ripples.length;k++){if(ripples[k].age>=1.5){ripples[k].age=0;ripples[k].str=str;break;}}}
+
+  function frame(){
+    requestAnimationFrame(frame);
+    var dt=Math.min(clock.getDelta(),0.05);tt+=dt;
+    if(auto){autoT=(autoT+dt)%SEQ_LEN;var acc=0,want=SEQ[0][0];for(var q2=0;q2<SEQ.length;q2++){acc+=SEQ[q2][1];if(autoT<acc){want=SEQ[q2][0];break;}}if(want!==state)state=want;}
+    var a=sample(tt);lvl+=(a.level-lvl)*(1-Math.exp(-dt*14));
+    var mt=state==='speaking'?a.level:0;var kk=mt>m?28:12;m+=(mt-m)*(1-Math.exp(-dt*kk));
+    vowel+=(a.v-vowel)*(1-Math.exp(-dt*16));
+    var amp=(state==='thinking'?0.14+0.06*Math.sin(tt*3.2):lvl);
+
+    if(flow)applyTint(0.5+0.5*Math.sin(tt*0.7+amp*2));
+
+    if(flash>0){flash=Math.max(0,flash-dt*1.6);}
+    var fe=flash*flash*(3-2*flash);
+    shellU.uColor.value.copy(shellC).lerp(flashC,fe*0.8);shellU.uK.value=((id==='crystal')?0.8:1.0)*(1+fe*2.2);
+    var beat=cfg.beat?0.014*Math.pow(Math.max(0,Math.sin(tt*3.1)),6):0;
+    head.scale.setScalar(1+Math.sin(tt*1.6)*0.008+amp*0.02+(state==='listening'?0.02:0)+beat+fe*0.07);
+    var fy=Math.sin(tt*1.15)*0.05;head.position.y=fy;ring.position.y=fy;ring2.position.y=fy;orbit.position.y=fy;sparkles.position.y=fy;
+
+    var ty=px*0.32+Math.sin(tt*0.5)*0.06,tx=py*0.22+Math.sin(tt*0.7)*0.03-amp*0.05*Math.sin(tt*9);
+    head.rotation.y+=(ty-head.rotation.y)*(1-Math.exp(-dt*5));
+    head.rotation.x+=(tx-head.rotation.x)*(1-Math.exp(-dt*6));
+    var tz=state==='listening'?0.09+0.03*Math.sin(tt*1.1):(state==='thinking'?-0.08:0);
+    head.rotation.z+=(tz-head.rotation.z)*(1-Math.exp(-dt*4));
+
+    // rings: idle 1, listening 0 (waves instead), thinking 2, speaking 1
+    var rOn=cfg.rings!==false;
+    s1+=((state==='listening'?0:1)-s1)*(1-Math.exp(-dt*6));s2+=((state==='thinking'?1:0)-s2)*(1-Math.exp(-dt*6));
+    ring.scale.setScalar(Math.max(0.001,s1));ring.visible=rOn&&s1>0.01;ring2.scale.setScalar(Math.max(0.001,s2));ring2.visible=rOn&&s2>0.01;
+    var spin=state==='thinking'?2.2:(state==='speaking'?0.5+amp*1.2:0.3);
+    ring.rotation.z+=dt*spin;ring2.rotation.x-=dt*spin*0.8;
+    ring.rotation.y=0.3+Math.sin(tt*0.4)*0.25;ring2.rotation.y=-0.4+Math.sin(tt*0.3+1)*0.25;
+
+    if(cfg.orbit){
+      var ob=tt*(0.9+(state==='thinking'?2.2:amp*2.0));
+      for(var b2=0;b2<beads.length;b2++){var an2=ob+b2*2.094;beads[b2].position.set(Math.cos(an2)*1.62,Math.sin(an2)*1.62,0);}
+      orbit.rotation.y=Math.sin(tt*0.4)*0.25;
+    }
+    if(cfg.sparkle){sparkles.rotation.y+=dt*(0.15+amp*0.6);spMat.opacity=0.55+0.35*Math.sin(tt*2.3)+amp*0.1;}
+
+    // eyes
+    if(tt>nextSacc){tgx=(Math.random()-0.5)*0.8;tgy=(Math.random()-0.5)*0.5;nextSacc=tt+1.2+Math.random()*3;}
+    var useP=(Math.abs(px)+Math.abs(py))>0.02;
+    var wx=useP?px:tgx,wy=useP?py:tgy;
+    if(state==='listening'){wx=0;wy=0;}
+    else if(state==='thinking'){wx=-0.5+0.25*Math.sin(tt*1.3);wy=-0.75;}
+    gx+=(wx-gx)*(1-Math.exp(-dt*10));gy+=(wy-gy)*(1-Math.exp(-dt*10));
+    if(blinkP<0&&tt>nextBlink){blinkP=0;}
+    var open=1;
+    if(blinkP>=0){blinkP+=dt/0.15;open=1-Math.sin(Math.PI*Math.min(blinkP,1))*0.94;
+      if(blinkP>=1){blinkP=-1;if(!dbl&&Math.random()<0.22){dbl=true;nextBlink=tt+0.12;}else{dbl=false;nextBlink=tt+2+Math.random()*3.5;}}}
+    var wide=state==='listening'?1.14:(state==='thinking'?0.92:1+amp*0.1);
+    dil+=((state==='listening'?1.25:(state==='thinking'?0.85:1))-dil)*(1-Math.exp(-dt*6));
+    [eyeL,eyeR].forEach(function(e){
+      e.g.scale.set(1+amp*0.02,Math.max(0.05,open)*wide,1);
+      e.g.position.x=e.bx+gx*0.02;e.g.position.y=0.2-gy*0.02;
+      e.look.position.x=gx*0.045;e.look.position.y=-gy*0.05;
+      e.pupil.scale.set(0.075*dil,0.1*dil,0.03);
+    });
+
+    // mouth: smile when quiet, opens with loudness, narrow for low vowels, wide for bright ones
+    var o=Math.min(1,m*1.25);
+    var w=0.095+0.1*vowel-0.025*o,h=0.012+0.155*o;
+    var openAmt=T.MathUtils.smoothstep(o,0.04,0.16);
+    flat+=((state==='thinking'?0.2:1)-flat)*(1-Math.exp(-dt*8));
+    smile.scale.set(1-openAmt*0.6,((1-openAmt)*0.5+0.0001)*flat,1);smile.visible=openAmt<0.98;
+    var show=openAmt>0.001;rim.visible=cav.visible=tongue.visible=show;
+    if(show){
+      rim.scale.set((w+0.009)*openAmt+0.0001,(h+0.009)*openAmt+0.0001,0.05);
+      cav.scale.set(w*openAmt+0.0001,h*openAmt+0.0001,0.06);
+      tongue.scale.set(w*0.6*openAmt+0.0001,h*0.32*openAmt+0.0001,0.035);tongue.position.y=-h*0.55*openAmt;
+    }
+    mouth.position.y=-0.36+0.03*o;
+
+    // ripples: listening waves travel inward; some designs also breathe soft waves all the time
+    nextRip-=dt;
+    if(state==='listening'){if(nextRip<=0){spawnRipple(lvl);nextRip=Math.max(0.28,0.95-lvl*0.8);}}
+    else if(cfg.ripple&&nextRip<=0){spawnRipple(0.05);nextRip=1.7;}
+    ripples.forEach(function(r){
+      if(r.age<1.5){r.age+=dt;var u2=Math.min(1,r.age/1.5);r.m.visible=true;r.m.position.y=fy;r.m.scale.setScalar(2.6-1.25*u2);r.m.material.opacity=Math.sin(Math.PI*u2)*(0.2+0.3*r.str);r.m.material.color.copy(eyeT);}
+      else r.m.visible=false;
+    });
+
+    renderer.render(scene,camera);
+  }
+
+  setState(pending.state);
+  setDesign(DESIGNS[pending.design]?pending.design:'crystal');
+  window.__ready=true;
+  frame();
+}
+})();
+</script>
+</body></html>

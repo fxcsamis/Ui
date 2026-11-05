@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Metadata of the voice interaction service (what makes ARKITAK Lite selectable as "Default digital assistant app").
+  Attribute names used: sessionService, recognitionService, settingsActivity, supportsAssist,
+  supportsLaunchVoiceAssistFromKeyguard. They come from the Android documentation for VoiceInteractionService and could NOT be
+  checked against the SDK on the machine that wrote this file: if the build stops with "attribute android:xxx not found",
+  delete that one line (the build message names it) and tell me.
+-->
+<voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="com.arkitak.lite.wake.ArkitakVoiceInteractionSessionService"
+    android:recognitionService="com.arkitak.lite.wake.ArkitakRecognitionService"
+    android:settingsActivity="com.arkitak.lite.wake.WakeSettingsActivity"
+    android:supportsAssist="true"
+    android:supportsLaunchVoiceAssistFromKeyguard="true" />
