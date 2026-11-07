@@ -8,11 +8,8 @@ import android.content.pm.PackageManager
 import android.service.voice.VoiceInteractionService
 import com.arkitak.lite.Personas
 import com.arkitak.lite.Prefs
-import java.lang.reflect.InvocationHandler
 import java.lang.reflect.InvocationTargetException
-import java.lang.reflect.Method
 import java.lang.reflect.Modifier
-import java.lang.reflect.Proxy
 import java.util.Locale
 
 /**
@@ -31,8 +28,9 @@ import java.util.Locale
  *  - HotwordDetectionService (system-fed audio with an app-supplied detector) is NOT used: it needs privileged permissions and an
  *    OEM / privileged install, so it cannot be used by a normal app. Not implemented on purpose; nothing is faked.
  *
- * IMPLEMENTATION NOTE: the detector is reached by reflection, only through public SDK members. This keeps the project compiling
- * whatever the compile SDK exposes. If Android hides a member from apps, the lookup fails and the reason is shown in the popup.
+ * IMPLEMENTATION NOTE: the callback is a real subclass (DspCallback.kt: on this phone it is an abstract class). The detector itself
+ * is created and started by reflection over public SDK members, so a signature that differs between Android versions cannot break
+ * the build; if Android hides a member from apps, the lookup fails and the reason is shown in the popup.
  */
 class DspHotwordEngine(private val ctx: Context, private val sink: WakeSink) : WakeEngine {
 
@@ -223,18 +221,7 @@ class DspHotwordEngine(private val ctx: Context, private val sink: WakeSink) : W
         callbackRef = null
         availabilityCode = null
         if (stateNames.isEmpty()) loadStateNames()
-        val cbClass = try { Class.forName("$AOHD\$Callback") } catch (t: Throwable) {
-            lastError = "AlwaysOnHotwordDetector.Callback was not found on this Android version"
-            DiagLog.log(TAG, lastError!!, t)
-            return
-        }
-        if (!cbClass.isInterface) {
-            lastError = "AlwaysOnHotwordDetector.Callback is an abstract class on this Android version; it cannot be implemented without compile-time access"
-            DiagLog.log(TAG, lastError!!)
-            return
-        }
-        val handler = InvocationHandler { proxy, method, args -> onCallback(proxy, method, args) }
-        val cb = Proxy.newProxyInstance(cbClass.classLoader, arrayOf(cbClass), handler)
+        val cb: Any = DspCallback(this) // a real subclass: the callback is an abstract class on this Android version
         // VoiceInteractionService.createAlwaysOnHotwordDetector(String, Locale, Callback): min API 24, only for the active assistant service.
         val m = svc.javaClass.methods.firstOrNull {
             it.name == "createAlwaysOnHotwordDetector" && it.parameterTypes.size == 3 &&
@@ -259,41 +246,30 @@ class DspHotwordEngine(private val ctx: Context, private val sink: WakeSink) : W
         }
     }
 
-    private fun onCallback(proxy: Any, method: Method, args: Array<out Any?>?): Any? {
-        DiagLog.safe("dsp callback ${method.name}") {
-            val a = args?.joinToString(",") { it.toString() } ?: ""
-            when (method.name) {
-                // onAvailabilityChanged(int): min API 24
-                "onAvailabilityChanged" -> {
-                    val code = args?.getOrNull(0) as? Int
-                    availabilityCode = code
-                    DiagLog.log(TAG, "onAvailabilityChanged: ${nameOf(code)} (code=$code)")
-                    if (running) actOnAvailability()
-                    sink.onStatusChanged(id)
-                }
-                // onDetected(EventPayload): min API 24. This is the real detection.
-                "onDetected" -> {
-                    recognizing = false
-                    DiagLog.log(TAG, "onDetected: the system heard '${keyphrase()}'")
-                    sink.onWake(id, prefs.dspPersona, "keyphrase '${keyphrase()}' (system hotword detection)")
-                    sink.onStatusChanged(id)
-                }
-                "onError", "onFailure", "onUnknownFailure" -> {
-                    lastError = "${method.name}($a) reported by the system"
-                    recognizing = false
-                    DiagLog.log(TAG, lastError!!)
-                    sink.onStatusChanged(id)
-                }
-                else -> DiagLog.log(TAG, "callback ${method.name}($a)")
-            }
-        }
-        return when (method.name) {
-            "hashCode" -> System.identityHashCode(proxy)
-            "equals" -> proxy === args?.getOrNull(0)
-            "toString" -> "ArkitakDspCallback"
-            else -> null
-        }
+    // ---- called by DspCallback (system callbacks) ----
+
+    fun cbAvailability(code: Int) {
+        availabilityCode = code
+        DiagLog.log(TAG, "onAvailabilityChanged: ${nameOf(code)} (code=$code)")
+        if (running) actOnAvailability()
+        sink.onStatusChanged(id)
     }
+
+    fun cbDetected() {
+        recognizing = false
+        DiagLog.log(TAG, "onDetected: the system heard '${keyphrase()}'")
+        sink.onWake(id, prefs.dspPersona, "keyphrase '${keyphrase()}' (system hotword detection)")
+        sink.onStatusChanged(id)
+    }
+
+    fun cbError(what: String) {
+        lastError = "$what reported by the system"
+        recognizing = false
+        DiagLog.log(TAG, lastError!!)
+        sink.onStatusChanged(id)
+    }
+
+    fun cbInfo(what: String) { DiagLog.log(TAG, "callback $what") }
 
     /** ENROLLED and the engine is ON: start recognition. Other states are reported by [status]. */
     private fun actOnAvailability() {

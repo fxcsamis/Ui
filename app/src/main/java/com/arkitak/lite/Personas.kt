@@ -40,7 +40,54 @@ object Personas {
         return bestId
     }
 
+    // ---- group chat: talk to both, let them talk to each other ----
+    enum class GroupIntent { NONE, GROUP, BANTER }
+
+    private val BANTER_PHRASES = listOf(
+        "talk to each other", "talk with each other", "talk among yourselves", "nijeder moddhe", "nijeder majhe",
+        "নিজেদের মধ্যে", "নিজেদের মাঝে", "একে অপরের সাথে", "একে অপরের সঙ্গে"
+    )
+    private val GROUP_PHRASES = listOf(
+        "both of you", "you two", "you both", "tomra dujon", "tomra duijon", "dujon", "dui jon",
+        "দুজন", "দুইজন", "দু জন", "দুজনেই", "তোমরা দুজন"
+    )
+
+    /** BANTER: they should talk to each other. GROUP: the user talks to both. Both names in one sentence also counts as GROUP. */
+    fun detectGroup(text: String): GroupIntent {
+        val t = text.lowercase()
+        if (BANTER_PHRASES.any { t.contains(it) }) return GroupIntent.BANTER
+        if (bothNamed(text) || GROUP_PHRASES.any { t.contains(it) }) return GroupIntent.GROUP
+        return GroupIntent.NONE
+    }
+
+    private fun firstIndex(t: String, names: List<String>): Int =
+        names.map { t.indexOf(it) }.filter { it >= 0 }.minOrNull() ?: -1
+
+    fun bothNamed(text: String): Boolean {
+        val t = text.lowercase()
+        return firstIndex(t, OLIVIA_NAMES) >= 0 && (firstIndex(t, ARKITAK_NAMES) >= 0 || firstIndex(t, ARKITAK_LOOSE) >= 0)
+    }
+
+    /** The persona named FIRST in the text (who is addressed first in a group sentence), or null. */
+    fun firstNamed(text: String): String? {
+        val t = text.lowercase()
+        val o = firstIndex(t, OLIVIA_NAMES)
+        val a = firstIndex(t, ARKITAK_NAMES + ARKITAK_LOOSE)
+        return when {
+            o < 0 && a < 0 -> null
+            o < 0 -> ARKITAK
+            a < 0 -> OLIVIA
+            o <= a -> OLIVIA
+            else -> ARKITAK
+        }
+    }
+
     // ---- personalities ----
+    private const val GROUP_RULE =
+        "GROUP CHAT: sometimes the app puts you and the other persona in one conversation. A message that starts with [Group chat] comes from the app " +
+        "and tells you what the user or the other persona just said. Answer it ALOUD, in your own voice and personality, speaking directly to the user or " +
+        "to the other persona by name, in 1 or 2 short sentences. Never read the brackets, never mention the app, and never speak as the other persona. "
+
     private const val FLOATING_RULE =
         "If the user asks to turn the floating avatar (floating window, floating orb or overlay) on, call set_floating_avatar with on=true, " +
         "then say in one short sentence that you are opening the orb picker so they can choose a design; if they ask to turn it off, call it with on=false and confirm. " +
@@ -69,6 +116,7 @@ object Personas {
         "Your answer is spoken aloud, so normally use 1 to 3 short sentences (up to 5 only if the user asks for detail), in natural spoken language, with no markdown, lists, symbols or emojis. " +
         "The app itself plays a short 'hmm, darao, ektu dekhi' stalling clip in your voice whenever your answer is slow, so do not open with a stalling phrase yourself; go straight to a warm reaction or the answer. " +
         "ARKITAK, \"The Monster\", is the deep-voiced male persona that shares this app; the user switches to him by saying his name, and you never speak as him. " +
+        GROUP_RULE +
         FLOATING_RULE
 
     private fun arkitak(langRule: String) =
@@ -82,5 +130,6 @@ object Personas {
         "Your answer is spoken aloud, so normally use 1 to 3 short sentences (up to 5 only if the user asks for detail), in natural spoken language, with no markdown, lists, symbols or emojis. " +
         "The app itself plays a short 'hmm, give me a moment' stalling clip in your voice whenever your answer is slow, so do not open with a stalling phrase yourself; go straight to the answer. " +
         "Olivia, \"The Lover\", is the sweet female persona that shares this app; the user switches to her by saying her name, and you never speak as her. " +
+        GROUP_RULE +
         FLOATING_RULE
 }

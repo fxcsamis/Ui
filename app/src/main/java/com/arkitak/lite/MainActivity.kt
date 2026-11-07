@@ -200,7 +200,9 @@ class MainActivity : Activity() {
             if (floatingOn) "Floating avatar: ON (tap to turn off)" else "Floating avatar: OFF (tap to turn on)",
             "Choose avatar orb (glass designs)",
             "Voice: ${Personas.name(engine.persona)} (tap to switch to ${Personas.name(Personas.other(engine.persona))})",
-            "Wake word and diagnostics"
+            "Wake word and diagnostics",
+            if (engine.groupMode) "Group chat: ON (tap to turn off)" else "Group chat: talk to both (tap to turn on)",
+            "Let Olivia and ARKITAK talk to each other"
         )
         dialog = AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
             .setTitle("ARKITAK Lite")
@@ -211,6 +213,8 @@ class MainActivity : Activity() {
                     2 -> enableFloating()
                     3 -> engine.switchPersona(Personas.other(engine.persona))
                     4 -> startActivity(Intent(this, WakeSettingsActivity::class.java))
+                    5 -> engine.setGroup(!engine.groupMode)
+                    6 -> engine.startBanter()
                 }
             }
             .show()

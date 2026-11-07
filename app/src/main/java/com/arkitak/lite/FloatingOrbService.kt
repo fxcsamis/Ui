@@ -354,8 +354,13 @@ class FloatingOrbService : Service() {
 
     private fun renderHeader() {
         val p = engine.persona
-        panelTitle?.text = Personas.title(p)
-        panelTitle?.setTextColor(Personas.color(p))
+        if (engine.groupMode) {
+            panelTitle?.text = "Olivia + ARKITAK · together"
+            panelTitle?.setTextColor(Color.WHITE)
+        } else {
+            panelTitle?.text = Personas.title(p)
+            panelTitle?.setTextColor(Personas.color(p))
+        }
     }
 
     /** Newest reply in white, older ones dimmer; a small coloured name appears when the speaker changes. */

@@ -51,6 +51,9 @@ class AssistantEngine private constructor(private val ctx: Context) {
         private const val MAX_PRE_CONNECT = 60     // ~1.2 s of audio kept while the connection is still opening
         private const val FILLER_AFTER_MS = 1400L  // answer slower than this after you finished talking: Olivia says "hmm, darao..."
         private const val FILLER_MIN_FRAMES = 25   // ~0.5 s of real speech, so a cough or a click does not trigger it
+        private const val GROUP_TURNS = 1          // group chat: after the first persona answers, the other one answers once
+        private const val BANTER_TURNS = 6         // "talk to each other": up to 6 hand-overs, until you speak
+        private const val ROUTE_HOLD_MS = 600L     // the first audio of a reply waits at most this long for the transcript of your words
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -89,6 +92,23 @@ class AssistantEngine private constructor(private val ctx: Context) {
     private val replies = ArrayList<Reply>()
     private val replyBuf = StringBuilder()
     private var replyOpen = false
+
+    // ---- group chat: both personas take part, and can talk to each other ----
+    @Volatile var groupMode = false
+        private set
+    private var bridgeBudget = 0
+    private var bridgeFrom: String? = null
+    private val userUtterance = StringBuilder() // what the user said in the current sentence (for the other persona)
+    private var bridgesSinceUser = 0
+
+    // ---- routing: a name you say must reach the right persona BEFORE the wrong voice speaks ----
+    private val routeLock = Any()
+    private val heldAudio = ArrayList<ByteArray>()
+    private var holding = false
+    private var routeDecided = false
+    @Volatile private var transcriptSeen = false   // some of this sentence was transcribed already
+    @Volatile private var transcriptsWork = false  // transcripts ever arrived: only then is it worth waiting for them
+    private val releaseHeld = Runnable { releaseHeldAudio() }
     @Volatile private var utteranceFrames = 0
     @Volatile private var lastActivityAt = 0L // wake mode: when the conversation last did anything (talking, thinking, speaking)
     private var fillerPlayed = false
@@ -199,6 +219,9 @@ class AssistantEngine private constructor(private val ctx: Context) {
         main.removeCallbacks(endSpeaking)
         main.removeCallbacks(speakTick)
         fillerBanks.values.forEach { it.cancel() }
+        dropHeldAudio()
+        bridgeFrom = null
+        bridgeBudget = 0
         awaitingAnswer = false
         fillerPlayed = false
         utteranceFrames = 0
@@ -348,6 +371,12 @@ class AssistantEngine private constructor(private val ctx: Context) {
         fillerPlayed = false
         awaitingAnswer = false
         inputBuf.setLength(0)
+        userUtterance.setLength(0)
+        transcriptSeen = false
+        synchronized(routeLock) { routeDecided = false }
+        bridgeFrom = null
+        bridgesSinceUser = 0
+        bridgeBudget = if (groupMode) GROUP_TURNS else 0 // you speak: any running hand-over chat stops
         closeReply()
         if (state != OrbView.STATE_LISTENING) setState(OrbView.STATE_LISTENING)
     }
@@ -385,6 +414,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
             if (awaitingAnswer) { thinkingSince = SystemClock.elapsedRealtime(); setState(OrbView.STATE_THINKING) } // only the stalling clip played
             else setState(OrbView.STATE_IDLE)
         }
+        maybeBridge()
     }
 
     /** While speaking: feed the orb the loudness of what is being heard right now (lips move in time with the voice). */
@@ -430,7 +460,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
         override fun onAudio(pcm24k: ByteArray) {
             if (!mine()) return
             awaitingAnswer = false
-            speaker?.enqueue(pcm24k)
+            if (!holdForRouting(pcm24k)) speaker?.enqueue(pcm24k)
         }
 
         override fun onInterrupted() {
@@ -443,9 +473,13 @@ class AssistantEngine private constructor(private val ctx: Context) {
             if (!mine()) return
             speaker?.turnComplete()
             awaitingAnswer = false
+            synchronized(routeLock) { routeDecided = false } // the next reply decides its route again
             main.postDelayed({ closeReply() }, 600L) // the last words of the transcript can arrive just after
             main.post {
-                if (active && state == OrbView.STATE_THINKING && speaker?.isPlaying() != true) setState(OrbView.STATE_IDLE)
+                if (!active || !mine()) return@post
+                if (groupMode && bridgeBudget > 0) bridgeFrom = id // the other persona answers once this voice has finished
+                if (state == OrbView.STATE_THINKING && speaker?.isPlaying() != true) setState(OrbView.STATE_IDLE)
+                maybeBridge()
             }
         }
 
@@ -464,9 +498,25 @@ class AssistantEngine private constructor(private val ctx: Context) {
             if (!mine()) return
             main.post {
                 if (!active || !mine()) return@post
+                transcriptSeen = true
+                transcriptsWork = true
                 inputBuf.append(text)
-                val named = Personas.detect(inputBuf.toString())
+                userUtterance.append(text)
+                val heard = inputBuf.toString()
+                // 1) group chat / "talk to each other"
+                when (Personas.detectGroup(heard)) {
+                    Personas.GroupIntent.BANTER -> { setGroupNow(true); bridgeBudget = BANTER_TURNS }
+                    Personas.GroupIntent.GROUP -> { setGroupNow(true); if (bridgeBudget < GROUP_TURNS) bridgeBudget = GROUP_TURNS }
+                    else -> {}
+                }
+                // 2) who is addressed: in a group the FIRST name leads; alone, the last name wins
+                val both = Personas.bothNamed(heard)
+                val named = if (groupMode && both) Personas.firstNamed(heard) else Personas.detect(heard)
+                if (named != null && !both && groupMode && Personas.detectGroup(heard) == Personas.GroupIntent.NONE) {
+                    setGroupNow(false) // one name only: back to a private conversation with that persona
+                }
                 if (named != null && named != persona) switchNow(named, replay = true)
+                else if (holding) { main.removeCallbacks(releaseHeld); releaseHeldAudio() } // right voice already: let it speak
             }
         }
 
@@ -497,6 +547,8 @@ class AssistantEngine private constructor(private val ctx: Context) {
         if (!active || id == persona) return
         val oldId = persona
         main.removeCallbacks(endSpeaking)
+        dropHeldAudio()           // audio the old persona had already started is thrown away, never played
+        bridgeFrom = null
         speaker?.flush()          // the old persona's voice stops
         awaitingAnswer = false
         fillerPlayed = false
@@ -535,4 +587,108 @@ class AssistantEngine private constructor(private val ctx: Context) {
 
     /** The latest replies, oldest first (main thread). The last one may still be growing. */
     fun replyHistory(): List<Reply> = ArrayList(replies)
+
+    // ---------------------------------------------------------------- routing hold (a name must win before the wrong voice speaks)
+
+    /** True = this audio was kept back (nothing is played yet). */
+    private fun holdForRouting(pcm: ByteArray): Boolean {
+        synchronized(routeLock) {
+            if (routeDecided) return false
+            if (transcriptSeen || !transcriptsWork) { routeDecided = true; return false } // nothing to wait for
+            heldAudio.add(pcm)
+            if (!holding) { holding = true; main.postDelayed(releaseHeld, ROUTE_HOLD_MS) }
+            return true
+        }
+    }
+
+    /** No name sent the sentence to the other persona: the held audio plays now. Main thread. */
+    private fun releaseHeldAudio() {
+        val list: List<ByteArray>
+        synchronized(routeLock) {
+            routeDecided = true
+            holding = false
+            list = ArrayList(heldAudio)
+            heldAudio.clear()
+        }
+        for (c in list) speaker?.enqueue(c)
+    }
+
+    private fun dropHeldAudio() {
+        main.removeCallbacks(releaseHeld)
+        synchronized(routeLock) { heldAudio.clear(); holding = false; routeDecided = false }
+    }
+
+    // ---------------------------------------------------------------- group chat and the bridge between the two personas
+
+    private fun setGroupNow(on: Boolean) {
+        if (groupMode == on) return
+        groupMode = on
+        if (!on) { bridgeBudget = 0; bridgeFrom = null }
+        DiagLog.log("GROUP", "group chat ${if (on) "ON" else "OFF"}")
+        listeners.forEach { it.onPersona(persona) }
+    }
+
+    /** Menu / manual: both personas take part in the conversation. */
+    fun setGroup(on: Boolean) { main.post { setGroupNow(on); if (on) bridgeBudget = GROUP_TURNS } }
+
+    /** Menu / manual: the two personas talk to each other until you speak. */
+    fun startBanter() {
+        main.post {
+            if (!active) { postMessage("Start the conversation first"); return@post }
+            setGroupNow(true)
+            bridgeBudget = BANTER_TURNS
+            bridgesSinceUser = 0
+            userUtterance.setLength(0)
+            val other = Personas.other(persona)
+            sessions[persona]?.sendText(
+                "[Group chat] ${Personas.name(other)} is here with you now. Start a short, fun conversation with ${Personas.name(other)}: " +
+                    "say one or two sentences to ${Personas.name(other)} directly, in your own voice."
+            )
+            DiagLog.log("GROUP", "banter started by ${persona}")
+        }
+    }
+
+    /** The voice that was speaking has finished: pass the floor to the other persona, who hears what was said (as text). Main thread. */
+    private fun maybeBridge() {
+        val from = bridgeFrom ?: return
+        if (!active || !groupMode || bridgeBudget <= 0) { bridgeFrom = null; return }
+        if (speaker?.isPlaying() == true || state == OrbView.STATE_LISTENING || state == OrbView.STATE_SPEAKING) return
+        val to = Personas.other(from)
+        val target = sessions[to]
+        if (target == null || !target.isReady()) { bridgeFrom = null; postMessage("${Personas.name(to)} is not connected yet"); return }
+        val said = replies.lastOrNull { it.persona == from }?.text?.trim().orEmpty()
+        if (said.isEmpty()) { bridgeFrom = null; return } // no transcript: nothing to pass on
+        val user = userUtterance.toString().trim()
+        val firstAfterUser = bridgesSinceUser == 0 && user.isNotEmpty()
+        bridgesSinceUser++
+        bridgeFrom = null
+        bridgeBudget--
+        // The floor moves: the other persona is now the active one, so its voice is played and it hears the microphone.
+        handOver(to)
+        val msg = if (firstAfterUser) {
+            "[Group chat] The user said: \"$user\". ${Personas.name(from)} just answered: \"$said\". Now it is your turn: answer the user in your own voice " +
+                "and react to ${Personas.name(from)} naturally. Maximum 2 short sentences."
+        } else {
+            "[Group chat] ${Personas.name(from)} said to you: \"$said\". Reply to ${Personas.name(from)} directly, in your own voice and personality. " +
+                "Maximum 2 short sentences. Do not repeat what was already said."
+        }
+        DiagLog.log("GROUP", "bridge ${from} -> $to (budget left $bridgeBudget)")
+        target.sendText(msg)
+    }
+
+    /** Like [switchNow] but nobody is cut off: the first voice has finished, so only the active persona changes. */
+    private fun handOver(id: String) {
+        if (id == persona) return
+        main.removeCallbacks(endSpeaking)
+        awaitingAnswer = false
+        fillerPlayed = true // no stalling clip while the other persona prepares its reply
+        inputBuf.setLength(0)
+        closeReply()
+        synchronized(ring) {
+            persona = id
+            prefs.persona = id
+        }
+        synchronized(routeLock) { routeDecided = true } // a text-driven reply has no user words to wait for
+        listeners.forEach { it.onPersona(id) }
+    }
 }
