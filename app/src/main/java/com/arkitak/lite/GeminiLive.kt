@@ -70,6 +70,16 @@ class GeminiLive(
                                 .put("required", JSONArray().put("on"))
                         )
                 )
+                .put(
+                    JSONObject()
+                        .put("name", "open_wake_screen")
+                        .put("description", "Opens the Wake word / wake detection screen of this app and, if enable is true, switches wake mode on so the app listens for the name (Hey Olivia / Hey ARKITAK) when idle. Call it when the user asks to turn on wake detection / wake word / hotword, or to open the wake or detection screen.")
+                        .put(
+                            "parameters",
+                            JSONObject().put("type", "OBJECT")
+                                .put("properties", JSONObject().put("enable", JSONObject().put("type", "BOOLEAN").put("description", "true to also switch wake mode on (default true)")))
+                        )
+                )
             )
         )
 

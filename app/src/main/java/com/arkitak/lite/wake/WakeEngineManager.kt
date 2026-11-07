@@ -3,6 +3,7 @@ package com.arkitak.lite.wake
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
+import android.os.PowerManager
 import android.os.Looper
 import android.os.SystemClock
 import com.arkitak.lite.AssistantEngine
@@ -179,13 +180,38 @@ object WakeEngineManager : WakeSink {
     private fun startConversation(persona: String?, source: String): Boolean {
         val engine = AssistantEngine.get(app)
         val started = engine.startFromWake(persona, source)
-        if (!FloatingOrbService.appVisible && Diagnostics.overlayOk(app)) {
-            // Android lets an app that may draw over other apps open its screen from the background. Without that permission only the voice works.
-            DiagLog.safe("open ui") {
-                app.startActivity(Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        // The screen may be off or locked: switch it on first, then open the app on top of the lock screen.
+        wakeScreen()
+        if (!FloatingOrbService.appVisible) {
+            if (Diagnostics.overlayOk(app)) {
+                DiagLog.safe("open ui") {
+                    app.startActivity(
+                        Intent(app, MainActivity::class.java)
+                            .putExtra(MainActivity.EXTRA_WAKE_SCREEN, true)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    )
+                }
+            } else {
+                // Android blocks starting an activity from the background without this permission. The screen still turns on.
+                DiagLog.log(TAG, "cannot open the app screen: 'Draw over other apps' is not allowed")
             }
         }
         return started
+    }
+
+    /** Turns the screen on for a few seconds. A normal activity flag cannot do this from a background service, a wake lock can. */
+    @Suppress("DEPRECATION")
+    private fun wakeScreen() {
+        DiagLog.safe("wake screen") {
+            val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (pm.isInteractive) return@safe
+            val wl = pm.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                "arkitak:wakescreen"
+            )
+            wl.acquire(10_000L) // released by itself after 10 s; the activity keeps the screen on after that (FLAG_KEEP_SCREEN_ON)
+            DiagLog.log(TAG, "screen was off: wake lock taken to turn it on")
+        }
     }
 
     override fun onStatusChanged(engineId: String) {

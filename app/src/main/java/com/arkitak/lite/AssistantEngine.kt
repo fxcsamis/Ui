@@ -455,6 +455,18 @@ class AssistantEngine private constructor(private val ctx: Context) {
                 val on = args.optBoolean("on", true)
                 main.post { listeners.forEach { it.onFloatingCommand(on) } }
                 sessions[this.id]?.sendToolResult(id, name, JSONObject().put("result", "ok"))
+            } else if (name == "open_wake_screen") {
+                val enable = args.optBoolean("enable", true)
+                main.post {
+                    DiagLog.safe("open wake screen") {
+                        ctx.startActivity(
+                            android.content.Intent(ctx, com.arkitak.lite.wake.WakeSettingsActivity::class.java)
+                                .putExtra(com.arkitak.lite.wake.WakeSettingsActivity.EXTRA_AUTO_ENABLE, enable)
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                }
+                sessions[this.id]?.sendToolResult(id, name, JSONObject().put("result", "ok"))
             } else {
                 sessions[this.id]?.sendToolResult(id, name, JSONObject().put("error", "unknown function"))
             }

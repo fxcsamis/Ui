@@ -7,6 +7,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -134,9 +135,24 @@ class WakeSettingsActivity : Activity(), WakeEngineManager.Listener {
         if (CrashReporter.list(this).isNotEmpty()) window.decorView.post { showDiagnostics() } // a crash happened last time: show it
     }
 
+    private var pendingAutoEnable = false
+
     override fun onResume() {
         super.onResume()
         WakeEngineManager.addListener(this)
+        // Opened by the assistant ("turn wake detection on"): this screen is visible now, so Android allows the microphone service.
+        if (intent?.getBooleanExtra(EXTRA_AUTO_ENABLE, false) == true) {
+            intent?.removeExtra(EXTRA_AUTO_ENABLE)
+            pendingAutoEnable = true
+        }
+        if (pendingAutoEnable) {
+            if (Diagnostics.hasMic(this)) {
+                pendingAutoEnable = false
+                DiagLog.safe("auto enable wake") { WakeEngineManager.setEnabled(true) }
+            } else {
+                requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC)
+            }
+        }
         refresh() // also after coming back from a system Settings screen
     }
 
@@ -426,6 +442,16 @@ class WakeSettingsActivity : Activity(), WakeEngineManager.Listener {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (pendingAutoEnable) {
+            pendingAutoEnable = false
+            if (requestCode == REQ_MIC && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+                DiagLog.safe("auto enable wake") { WakeEngineManager.setEnabled(true) }
+            }
+        }
         refresh()
+    }
+
+    companion object {
+        const val EXTRA_AUTO_ENABLE = "arkitak.auto_enable_wake"
     }
 }

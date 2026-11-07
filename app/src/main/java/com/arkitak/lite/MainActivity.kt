@@ -63,6 +63,7 @@ class MainActivity : Activity() {
         engine = AssistantEngine.get(this)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        applyWakeScreenFlags(intent)
         if (Build.VERSION.SDK_INT >= 28) {
             val lp = window.attributes
             lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
@@ -96,6 +97,29 @@ class MainActivity : Activity() {
         orb.onOrbTap = { onOrbTap() }
         orb.onOrbLongPress = { showMenu() }
         hideSystemBars()
+    }
+
+    /** Opened by a wake word: show over the lock screen and turn the screen on. A normal launch does not do this. */
+    private fun applyWakeScreenFlags(i: Intent?) {
+        val fromWake = i?.getBooleanExtra(EXTRA_WAKE_SCREEN, false) == true
+        if (Build.VERSION.SDK_INT >= 27) {
+            setShowWhenLocked(fromWake)
+            setTurnScreenOn(fromWake)
+        } else {
+            @Suppress("DEPRECATION")
+            val f = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            if (fromWake) window.addFlags(f) else window.clearFlags(f)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        applyWakeScreenFlags(intent)
+    }
+
+    companion object {
+        const val EXTRA_WAKE_SCREEN = "arkitak.wake_screen"
     }
 
     override fun onStart() {

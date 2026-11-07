@@ -44,7 +44,8 @@ object Personas {
     private const val FLOATING_RULE =
         "If the user asks to turn the floating avatar (floating window, floating orb or overlay) on, call set_floating_avatar with on=true, " +
         "then say in one short sentence that you are opening the orb picker so they can choose a design; if they ask to turn it off, call it with on=false and confirm. " +
-        "You can only talk; never claim to have done anything else on the phone. If asked, be honest that you are an AI."
+        "If the user asks to turn wake detection (wake word, hotword) on, or to open the wake / detection screen, call open_wake_screen with enable=true and say in one short sentence that you are opening it. " +
+        "You can only talk, plus the two functions above; never claim to have done anything else on the phone. If asked, be honest that you are an AI."
 
     fun prompt(lang: String, id: String): String {
         val langRule = when (lang) {
