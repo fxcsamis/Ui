@@ -1,38 +1,44 @@
 package com.arkitak.lite.wake
 
-import android.service.voice.AlwaysOnHotwordDetector
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Method
+import java.lang.reflect.Proxy
 
 /**
- * The callback of AlwaysOnHotwordDetector. On this phone it is an abstract CLASS (not an interface), so it has to be subclassed here
- * at compile time (the first version tried a reflection proxy and failed with exactly that message).
- *
- * UNVERIFIED on the machine that wrote this (no Android SDK there): the five abstract methods below are the ones the AOSP sources
- * list for API 24 to 34 (onAvailabilityChanged, onDetected, onError, onRecognitionPaused, onRecognitionResumed). If the build says
- * "does not implement abstract member X" or "overrides nothing", send me that line and I fix this one file.
- * Optional callbacks (onFailure, onRejected, ...) are left out on purpose: they have default bodies and differ between versions.
+ * AlwaysOnHotwordDetector is a hidden (@SystemApi) class: it is NOT in the public android.jar, so it cannot be named at
+ * compile time (the build said "Unresolved reference 'AlwaysOnHotwordDetector'"). So this file never mentions it.
+ * The callback is created at run time: if the platform's Callback is an interface we build a Proxy for it; if it is an
+ * abstract class (as on some phones) a Proxy is impossible and [create] throws a clear message that the Wake screen shows.
  */
-class DspCallback(private val owner: DspHotwordEngine) : AlwaysOnHotwordDetector.Callback() {
+class DspCallback(private val owner: DspHotwordEngine) : InvocationHandler {
 
-    /** min API 24. Availability of the keyphrase: STATE_HARDWARE_UNAVAILABLE / UNSUPPORTED / UNENROLLED / ENROLLED. */
-    override fun onAvailabilityChanged(status: Int) {
-        DiagLog.safe("dsp onAvailabilityChanged") { owner.cbAvailability(status) }
+    companion object {
+        private const val CALLBACK = "android.service.voice.AlwaysOnHotwordDetector\$Callback"
+
+        /** Returns a callback object for the platform, or throws IllegalStateException with the reason. */
+        fun create(owner: DspHotwordEngine): Any {
+            val cls = Class.forName(CALLBACK)
+            if (!cls.isInterface) {
+                throw IllegalStateException("AlwaysOnHotwordDetector.Callback is an abstract class on this Android version and a hidden API: apps cannot subclass it")
+            }
+            return Proxy.newProxyInstance(cls.classLoader, arrayOf(cls), DspCallback(owner))
+        }
     }
 
-    /** min API 24. The real detection. Recognition stops by itself after this and must be started again. */
-    override fun onDetected(eventPayload: AlwaysOnHotwordDetector.EventPayload) {
-        DiagLog.safe("dsp onDetected") { owner.cbDetected() }
-    }
-
-    /** min API 24. */
-    override fun onError() {
-        DiagLog.safe("dsp onError") { owner.cbError("onError") }
-    }
-
-    override fun onRecognitionPaused() {
-        DiagLog.safe("dsp onRecognitionPaused") { owner.cbInfo("onRecognitionPaused") }
-    }
-
-    override fun onRecognitionResumed() {
-        DiagLog.safe("dsp onRecognitionResumed") { owner.cbInfo("onRecognitionResumed") }
+    override fun invoke(proxy: Any, method: Method, args: Array<out Any?>?): Any? {
+        DiagLog.safe("dsp callback ${method.name}") {
+            when (method.name) {
+                "onAvailabilityChanged" -> owner.cbAvailability((args?.getOrNull(0) as? Int) ?: -1)
+                "onDetected" -> owner.cbDetected()
+                "onError" -> owner.cbError("onError")
+                else -> owner.cbInfo(method.name)
+            }
+        }
+        return when (method.name) {
+            "hashCode" -> System.identityHashCode(proxy)
+            "equals" -> proxy === args?.getOrNull(0)
+            "toString" -> "DspCallback"
+            else -> if (method.returnType == java.lang.Boolean.TYPE) false else null
+        }
     }
 }

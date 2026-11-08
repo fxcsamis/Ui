@@ -221,7 +221,13 @@ class DspHotwordEngine(private val ctx: Context, private val sink: WakeSink) : W
         callbackRef = null
         availabilityCode = null
         if (stateNames.isEmpty()) loadStateNames()
-        val cb: Any = DspCallback(this) // a real subclass: the callback is an abstract class on this Android version
+        val cb: Any = try {
+            DspCallback.create(this)
+        } catch (t: Throwable) {
+            lastError = t.message ?: "could not create the hotword callback"
+            DiagLog.log(TAG, lastError!!, t)
+            return
+        }
         // VoiceInteractionService.createAlwaysOnHotwordDetector(String, Locale, Callback): min API 24, only for the active assistant service.
         val m = svc.javaClass.methods.firstOrNull {
             it.name == "createAlwaysOnHotwordDetector" && it.parameterTypes.size == 3 &&
@@ -306,6 +312,7 @@ class DspHotwordEngine(private val ctx: Context, private val sink: WakeSink) : W
         error.contains("CAPTURE_AUDIO_HOTWORD") || error.contains("SecurityException") ->
             "This is a platform limit for normal apps. Use engine B (Vosk)."
         error.contains("not running") || error.contains("not bound") -> "Toggle the default assistant off and on, or reboot the phone"
+        error.contains("abstract class") || error.contains("hidden API") -> "This Android version hides the API from apps. Use engine B (Vosk)."
         error.contains("not exposed") -> "This Android version hides the API from apps. Use engine B (Vosk)."
         else -> "Copy the report and send it, or use engine B (Vosk)"
     }
