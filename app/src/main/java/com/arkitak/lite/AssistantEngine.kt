@@ -101,6 +101,14 @@ class AssistantEngine private constructor(private val ctx: Context) {
     private val userUtterance = StringBuilder() // what the user said in the current sentence (for the other persona)
     private var bridgesSinceUser = 0
 
+    // ---- early hand-over: the other persona prepares its answer WHILE the first voice is still playing ----
+    // Its audio and words are kept here (never played early) and released the moment the first voice ends: no waiting gap.
+    private val prefetchLock = Any()
+    @Volatile private var prefetchTo: String? = null
+    private val prefetchAudio = ArrayList<ByteArray>()
+    private val prefetchText = StringBuilder()
+    private var prefetchDone = false
+
     // ---- routing: a name you say must reach the right persona BEFORE the wrong voice speaks ----
     private val routeLock = Any()
     private val heldAudio = ArrayList<ByteArray>()
@@ -221,6 +229,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
         fillerBanks.values.forEach { it.cancel() }
         dropHeldAudio()
         bridgeFrom = null
+        cancelPrefetch()
         bridgeBudget = 0
         awaitingAnswer = false
         fillerPlayed = false
@@ -375,6 +384,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
         transcriptSeen = false
         synchronized(routeLock) { routeDecided = false }
         bridgeFrom = null
+        cancelPrefetch()
         bridgesSinceUser = 0
         bridgeBudget = if (groupMode) GROUP_TURNS else 0 // you speak: any running hand-over chat stops
         closeReply()
@@ -402,6 +412,8 @@ class AssistantEngine private constructor(private val ctx: Context) {
             main.post(speakTick)
         } else {
             lastPlaybackEnd = SystemClock.elapsedRealtime()
+            // The first voice has said everything (its turn was complete before the early hand-over): the other one speaks NOW.
+            prefetchTo?.let { completePrefetch(it) }
             main.postDelayed(endSpeaking, 350L) // short grace: more audio may follow a tiny gap
         }
     }
@@ -458,6 +470,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
         }
 
         override fun onAudio(pcm24k: ByteArray) {
+            synchronized(prefetchLock) { if (id == prefetchTo) { prefetchAudio.add(pcm24k); return } }
             if (!mine()) return
             awaitingAnswer = false
             if (!holdForRouting(pcm24k)) speaker?.enqueue(pcm24k)
@@ -470,6 +483,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
         }
 
         override fun onTurnComplete() {
+            synchronized(prefetchLock) { if (id == prefetchTo) { prefetchDone = true; return } }
             if (!mine()) return
             speaker?.turnComplete()
             awaitingAnswer = false
@@ -479,7 +493,10 @@ class AssistantEngine private constructor(private val ctx: Context) {
                 if (!active || !mine()) return@post
                 if (groupMode && bridgeBudget > 0) bridgeFrom = id // the other persona answers once this voice has finished
                 if (state == OrbView.STATE_THINKING && speaker?.isPlaying() != true) setState(OrbView.STATE_IDLE)
-                maybeBridge()
+                if (bridgeFrom == id && speaker?.isPlaying() == true) {
+                    // This voice is still playing: the other persona starts thinking now (after the last words of the transcript arrived).
+                    main.postDelayed({ if (active) prefetchBridge() }, 700L)
+                } else maybeBridge()
             }
         }
 
@@ -521,6 +538,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
         }
 
         override fun onOutputText(text: String) {
+            synchronized(prefetchLock) { if (id == prefetchTo) { prefetchText.append(text); return } }
             if (!mine()) return
             main.post { if (active && mine()) addReplyText(text) }
         }
@@ -549,6 +567,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
         main.removeCallbacks(endSpeaking)
         dropHeldAudio()           // audio the old persona had already started is thrown away, never played
         bridgeFrom = null
+        cancelPrefetch()
         speaker?.flush()          // the old persona's voice stops
         awaitingAnswer = false
         fillerPlayed = false
@@ -623,7 +642,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
     private fun setGroupNow(on: Boolean) {
         if (groupMode == on) return
         groupMode = on
-        if (!on) { bridgeBudget = 0; bridgeFrom = null }
+        if (!on) { bridgeBudget = 0; bridgeFrom = null; cancelPrefetch() }
         DiagLog.log("GROUP", "group chat ${if (on) "ON" else "OFF"}")
         listeners.forEach { it.onPersona(persona) }
     }
@@ -650,6 +669,7 @@ class AssistantEngine private constructor(private val ctx: Context) {
 
     /** The voice that was speaking has finished: pass the floor to the other persona, who hears what was said (as text). Main thread. */
     private fun maybeBridge() {
+        prefetchTo?.let { completePrefetch(it); return }
         val from = bridgeFrom ?: return
         if (!active || !groupMode || bridgeBudget <= 0) { bridgeFrom = null; return }
         if (speaker?.isPlaying() == true || state == OrbView.STATE_LISTENING || state == OrbView.STATE_SPEAKING) return
@@ -674,6 +694,66 @@ class AssistantEngine private constructor(private val ctx: Context) {
         }
         DiagLog.log("GROUP", "bridge ${from} -> $to (budget left $bridgeBudget)")
         target.sendText(msg)
+    }
+
+    private fun cancelPrefetch() {
+        synchronized(prefetchLock) { prefetchTo = null; prefetchAudio.clear(); prefetchText.setLength(0); prefetchDone = false }
+    }
+
+    /**
+     * The first voice is still playing but it has finished generating: send its words to the other persona now, so that the
+     * other brain is already answering. Its audio waits in [prefetchAudio] and is released by [completePrefetch]. Main thread.
+     */
+    private fun prefetchBridge() {
+        val from = bridgeFrom ?: return
+        if (prefetchTo != null || !active || !groupMode || bridgeBudget <= 0) return
+        if (speaker?.isPlaying() != true) return // nothing is playing any more: the normal hand-over does it at once
+        val to = Personas.other(from)
+        val target = sessions[to]
+        if (target == null || !target.isReady()) return
+        val said = replies.lastOrNull { it.persona == from }?.text?.trim().orEmpty()
+        if (said.isEmpty()) return
+        val user = userUtterance.toString().trim()
+        val firstAfterUser = bridgesSinceUser == 0 && user.isNotEmpty()
+        bridgesSinceUser++
+        bridgeBudget--
+        bridgeFrom = null
+        synchronized(prefetchLock) { prefetchAudio.clear(); prefetchText.setLength(0); prefetchDone = false; prefetchTo = to }
+        val msg = if (firstAfterUser) {
+            "[Group chat] The user said: \"$user\". ${Personas.name(from)} just answered: \"$said\". Now it is your turn: answer the user in your own voice " +
+                "and react to ${Personas.name(from)} naturally. Maximum 2 short sentences."
+        } else {
+            "[Group chat] ${Personas.name(from)} said to you: \"$said\". Reply to ${Personas.name(from)} directly, in your own voice and personality. " +
+                "Maximum 2 short sentences. Do not repeat what was already said."
+        }
+        DiagLog.log("GROUP", "early hand-over ${from} -> $to (budget left $bridgeBudget)")
+        target.sendText(msg)
+    }
+
+    /** The first voice has finished: the other persona takes the floor and its prepared audio plays at once. Main thread. */
+    private fun completePrefetch(to: String) {
+        if (prefetchTo != to) return
+        if (!active || !groupMode || state == OrbView.STATE_LISTENING) { cancelPrefetch(); return }
+        if (speaker?.isPlaying() == true) return // the first voice is not done yet
+        handOver(to) // from now on this persona is the active one (its late audio is played normally)
+        val audio: List<ByteArray>
+        val text: String
+        val done: Boolean
+        synchronized(prefetchLock) {
+            audio = ArrayList(prefetchAudio)
+            text = prefetchText.toString()
+            done = prefetchDone
+            prefetchAudio.clear(); prefetchText.setLength(0); prefetchDone = false
+            prefetchTo = null
+        }
+        DiagLog.log("GROUP", "early hand-over done: $to speaks now (${audio.size} audio chunks were ready, turn complete=$done)")
+        for (c in audio) speaker?.enqueue(c)
+        if (text.isNotEmpty()) addReplyText(text)
+        if (done) {
+            speaker?.turnComplete()
+            main.postDelayed({ closeReply() }, 600L)
+            if (groupMode && bridgeBudget > 0) bridgeFrom = to // and the first one answers next
+        }
     }
 
     /** Like [switchNow] but nobody is cut off: the first voice has finished, so only the active persona changes. */
