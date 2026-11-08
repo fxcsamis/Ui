@@ -59,7 +59,6 @@ object Diagnostics {
             sb.appendLine("== ${e.title}")
             sb.appendLine("Status: ${st.code}" + (if (st.detail.isNotEmpty()) " - ${st.detail}" else ""))
             if (st.fix.isNotEmpty()) sb.appendLine("How to fix: ${st.fix}")
-            if (e.id == "dsp") sb.appendLine("DSP state: ${WakeEngineManager.dsp.stateReport()}")
             if (e.id == "vosk") {
                 sb.appendLine("Model: ${VoskModelStore.statusText(ctx)}")
                 sb.appendLine("Service: ${VoskWakeService.state}" + (VoskWakeService.lastError?.let { " ($it)" } ?: ""))

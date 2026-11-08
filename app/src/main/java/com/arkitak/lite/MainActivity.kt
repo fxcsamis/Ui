@@ -34,6 +34,8 @@ import android.widget.Toast
 class MainActivity : Activity() {
 
     private lateinit var orb: OrbView
+    private lateinit var root: FrameLayout
+    @Volatile private var duo: DuoOrbView? = null
     private lateinit var engine: AssistantEngine
     private lateinit var prefs: Prefs
     private var dialog: AlertDialog? = null
@@ -47,8 +49,9 @@ class MainActivity : Activity() {
     private val REQ_OVERLAY = 12
 
     private val listener = object : AssistantEngine.Listener {
-        override fun onState(state: String) { orb.setState(state) }
-        override fun onLevel(level: Float) { orb.pushAudio(level) }
+        override fun onState(state: String) { orb.setState(state); duo?.setState(state) }
+        override fun onLevel(level: Float) { orb.pushAudio(level); duo?.pushAudio(level) }
+        override fun onPersona(persona: String) { runOnUiThread { syncDuo(); duo?.setActive(persona) } }
         override fun onMessage(message: String) {
             runOnUiThread { Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show() }
         }
@@ -69,7 +72,7 @@ class MainActivity : Activity() {
             window.attributes = lp
         }
 
-        val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
+        root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         // The orb view now covers the whole screen so its light and the small dots spread over the full screen.
         orb = OrbView(this, fullField = true)
         root.addView(orb, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
@@ -107,6 +110,9 @@ class MainActivity : Activity() {
         super.onResume()
         orb.onResume()
         engine.addListener(listener)
+        syncDuo()
+        if (duo != null) orb.onPause() // the pair is on screen: the single orb sleeps
+        duo?.onResume()
         when {
             prefs.apiKey.isBlank() -> showKeyDialog(firstTime = true)
             !engine.hasMicPermission() -> requestMic()
@@ -119,6 +125,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         engine.removeListener(listener)
         orb.onPause()
+        duo?.onPause()
         super.onPause()
     }
 
@@ -130,6 +137,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         dialog?.dismiss()
+        duo?.destroy()
+        duo = null
         orb.destroy()
         super.onDestroy()
     }
@@ -137,6 +146,37 @@ class MainActivity : Activity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideSystemBars()
+    }
+
+    /** Group chat on (Olivia and ARKITAK together): the orb splits in two with a line between them. Off: they flow back into one. */
+    private fun syncDuo() {
+        val want = engine.groupMode
+        val d = duo
+        if (want && d == null) {
+            val nd = DuoOrbView(this) { p ->
+                ParticleOrbHandle(this, if (p == Personas.ARKITAK) OrbView.THEME_DARK else OrbView.THEME_RED)
+            }
+            nd.onTap = { onOrbTap() }
+            nd.onHold = { showMenu() }
+            nd.setActive(engine.persona)
+            nd.setState(engine.state)
+            root.addView(nd, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+            duo = nd
+            orb.animate().alpha(0f).setDuration(300).start()
+            orb.onPause()
+            nd.open()
+        } else if (!want && d != null) {
+            orb.onResume()
+            orb.animate().alpha(1f).setDuration(450).start()
+            duo = null
+            d.close {
+                root.removeView(d)
+                d.destroy()
+                if (engine.groupMode) syncDuo()
+            }
+        } else if (want && d != null) {
+            d.setActive(engine.persona)
+        }
     }
 
     private fun springBack() {

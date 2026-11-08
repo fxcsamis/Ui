@@ -33,7 +33,9 @@ class OrbView @JvmOverloads constructor(
      * true = the view covers the whole screen: the orb's light and the small light dots are spread over the full screen
      * (the sphere keeps its normal size). false = a small view that only shows the orb (e.g. the floating avatar).
      */
-    private val fullField: Boolean = false
+    private val fullField: Boolean = false,
+    /** false = no soft halo behind the sphere (used when two orbs are shown together, see DuoOrbView). */
+    private val halo: Boolean = true
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
     companion object {
@@ -72,7 +74,7 @@ class OrbView @JvmOverloads constructor(
         clipToPadding = false
 
         val density = resources.displayMetrics.density
-        if (!fullField) { // the full-screen mode draws its own light over the whole screen
+        if (!fullField && halo) { // the full-screen mode draws its own light over the whole screen
             val haloSize = (260 * density).toInt()
             val halo = View(context).apply { setBackgroundResource(R.drawable.bg_orb_halo) }
             addView(halo, LayoutParams(haloSize, haloSize, Gravity.CENTER))

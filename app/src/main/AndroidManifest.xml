@@ -59,7 +59,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Engine A: voice interaction service. Android binds it only when ARKITAK Lite is the default digital assistant. -->
+        <!-- Voice interaction service: Android binds it only when ARKITAK Lite is the default digital assistant. It gives the swipe-up gesture / power-button screen (black screen with the orb). -->
         <service
             android:name=".wake.ArkitakVoiceInteractionService"
             android:exported="true"

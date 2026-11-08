@@ -32,14 +32,13 @@ import com.arkitak.lite.Prefs
 import java.io.File
 
 /**
- * The one Wake screen: three engine cards (A DSP, B Vosk, C Manual), the system rows, the Vosk settings, and the
+ * The one Wake screen: two engine cards (Vosk, Manual), the system rows, the Vosk settings, and the
  * "Test & diagnostics" popup. If something does not work, the reason and the fix are written here, and the report can be copied.
  */
 class WakeSettingsActivity : Activity(), WakeEngineManager.Listener {
 
     private val REQ_MIC = 51
     private val REQ_NOTIF = 52
-    private val REQ_ENROLL = 53
 
     private lateinit var prefs: Prefs
     private val dp by lazy { resources.displayMetrics.density }
@@ -53,8 +52,6 @@ class WakeSettingsActivity : Activity(), WakeEngineManager.Listener {
     private lateinit var wakeSwitch: Switch
     private lateinit var rows: LinearLayout
     private lateinit var voskBox: LinearLayout
-    private lateinit var enrollBtn: Button
-    private lateinit var keyphraseBtn: Button
     private var refreshing = false
     private val testNotes = HashMap<String, String>()
     private var diagDialog: AlertDialog? = null
@@ -92,8 +89,7 @@ class WakeSettingsActivity : Activity(), WakeEngineManager.Listener {
         col.addView(activeLine)
         col.addView(failureLine)
 
-        addCard(col, WakeEngineManager.dsp, "Main engine. Needs ARKITAK as the default assistant. Listens for ONE phrase only.")
-        addCard(col, WakeEngineManager.vosk, "Fallback. Works on any phone, uses the microphone (the indicator shows).")
+        addCard(col, WakeEngineManager.vosk, "Says the name to wake up. Works on any phone, uses the microphone (the indicator shows).")
         addCard(col, WakeEngineManager.manual, "Nothing listens. Call it: assistant gesture / power button, Quick Settings tile, home widget.")
 
         col.addView(text("System checks", 16f, Color.WHITE).pad(0, 20, 0, 4))
@@ -186,32 +182,6 @@ class WakeSettingsActivity : Activity(), WakeEngineManager.Listener {
             text = "Test this engine"
             setOnClickListener { runSingleTest(e.id) }
         })
-        if (e.id == "dsp") {
-            extra.addView(Button(this).apply {
-                text = "Choose default assistant (Android settings)"
-                setOnClickListener { openSettings(Settings.ACTION_VOICE_INPUT_SETTINGS) }
-            })
-            keyphraseBtn = Button(this).apply {
-                setOnClickListener {
-                    prefs.dspPersona = if (prefs.dspPersona == Personas.OLIVIA) Personas.ARKITAK else Personas.OLIVIA
-                    if (WakeEngineManager.isEnabled && WakeEngineManager.selectedId == "dsp") { WakeEngineManager.dsp.stop(); WakeEngineManager.dsp.start() }
-                    refresh()
-                }
-            }
-            extra.addView(keyphraseBtn)
-            enrollBtn = Button(this).apply {
-                text = "Enroll the keyphrase"
-                setOnClickListener {
-                    val i = WakeEngineManager.dsp.enrollIntent()
-                    if (i == null) Toast.makeText(this@WakeSettingsActivity, "This phone offers no enrollment screen for apps.", Toast.LENGTH_LONG).show()
-                    else try { startActivityForResult(i, REQ_ENROLL) } catch (t: Throwable) {
-                        DiagLog.log("UI", "enroll launch failed", t)
-                        Toast.makeText(this@WakeSettingsActivity, "Enrollment screen could not open: ${t.message}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
-            extra.addView(enrollBtn)
-        }
         parent.addView(box, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(12) })
         cards[e.id] = Card(radio, status, detail, last, extra)
     }
@@ -273,8 +243,6 @@ class WakeSettingsActivity : Activity(), WakeEngineManager.Listener {
                     else -> "Last test: never run"
                 }
             }
-            keyphraseBtn.text = "DSP keyphrase: " + WakeEngineManager.dsp.keyphrase() + "  (tap to switch)"
-            enrollBtn.visibility = if (WakeEngineManager.dsp.status() is EngineStatus.Unenrolled) View.VISIBLE else View.GONE
             voskBox.visibility = if (sel == "vosk") View.VISIBLE else View.GONE
 
             rows.removeAllViews()
@@ -287,7 +255,7 @@ class WakeSettingsActivity : Activity(), WakeEngineManager.Listener {
                 }
             }
             val da = Diagnostics.isDefaultAssistant(this)
-            addRow("Default assistant", if (da) "ARKITAK Lite" else "not ARKITAK Lite (needed for engine A and the gesture)", da, "Open") { openSettings(Settings.ACTION_VOICE_INPUT_SETTINGS) }
+            addRow("Default assistant", if (da) "ARKITAK Lite" else "not ARKITAK Lite (needed for the swipe-up / power-button gesture)", da, "Open") { openSettings(Settings.ACTION_VOICE_INPUT_SETTINGS) }
             val bat = Diagnostics.ignoringBattery(this)
             addRow("Battery optimization", if (bat) "not restricted" else "restricted: may stop listening in the background", bat, "Open") { openSettings(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS) }
             val ov = Diagnostics.overlayOk(this)
@@ -303,7 +271,6 @@ class WakeSettingsActivity : Activity(), WakeEngineManager.Listener {
 
     private fun hintFor(id: String) = when (id) {
         "vosk" -> "say \"Hey Olivia\" or \"Hey ARKITAK\" now (the first run loads the model first)"
-        "dsp" -> "checking the DSP state; if it listens, say \"${WakeEngineManager.dsp.keyphrase()}\""
         else -> "trigger it now: Quick Settings tile, widget or assistant gesture"
     }
 
@@ -354,7 +321,7 @@ class WakeSettingsActivity : Activity(), WakeEngineManager.Listener {
         val runAll = Button(this).apply { text = "Run all tests" }
         runAll.setOnClickListener {
             runAll.isEnabled = false
-            val ids = listOf("dsp", "vosk", "manual")
+            val ids = listOf("vosk", "manual")
             fun next(i: Int) {
                 if (i >= ids.size) { progress.text = "All tests finished."; runAll.isEnabled = true; refreshReport(); refresh(); return }
                 progress.text = "Testing ${ids[i].uppercase()}: ${hintFor(ids[i])}"

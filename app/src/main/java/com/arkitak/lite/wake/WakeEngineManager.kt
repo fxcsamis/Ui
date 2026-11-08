@@ -33,14 +33,12 @@ object WakeEngineManager : WakeSink {
     private lateinit var app: Context
     private lateinit var prefs: Prefs
 
-    lateinit var dsp: DspHotwordEngine
-        private set
     lateinit var vosk: VoskEngine
         private set
     lateinit var manual: ManualTriggerEngine
         private set
 
-    val engines: List<WakeEngine> get() = listOf(dsp, vosk, manual)
+    val engines: List<WakeEngine> get() = listOf(vosk, manual)
 
     @Volatile var lastFailure: String? = null
         private set
@@ -52,7 +50,6 @@ object WakeEngineManager : WakeSink {
         if (inited) return
         app = ctx.applicationContext
         prefs = Prefs(app)
-        dsp = DspHotwordEngine(app, this)
         vosk = VoskEngine(app, this)
         manual = ManualTriggerEngine(app, this)
         inited = true
@@ -159,14 +156,14 @@ object WakeEngineManager : WakeSink {
      * A manual trigger (assistant gesture, assist activity, tile, widget). Always starts the conversation, whichever engine is chosen.
      * Returns true if THIS call started it (so the caller may stop it later; a conversation that was already running is never ours).
      */
-    fun onTrigger(source: String): Boolean {
+    fun onTrigger(source: String, openUi: Boolean = true): Boolean {
         DiagLog.log(TAG, "manual trigger: $source")
         val t = test
         if (t != null && t.engineId == "manual") {
             finishTest(t, "Detected", "triggered by: $source", SystemClock.elapsedRealtime() - t.detectFrom)
             return false
         }
-        val owned = startConversation(null, "manual: $source")
+        val owned = startConversation(null, "manual: $source", openUi)
         ownedByTrigger = owned
         return owned
     }
@@ -176,10 +173,10 @@ object WakeEngineManager : WakeSink {
         if (ownedByTrigger) { ownedByTrigger = false; AssistantEngine.get(app).stop() }
     }
 
-    private fun startConversation(persona: String?, source: String): Boolean {
+    private fun startConversation(persona: String?, source: String, openUi: Boolean = true): Boolean {
         val engine = AssistantEngine.get(app)
         val started = engine.startFromWake(persona, source)
-        if (!FloatingOrbService.appVisible && Diagnostics.overlayOk(app)) {
+        if (openUi && !FloatingOrbService.appVisible && Diagnostics.overlayOk(app)) {
             // Android lets an app that may draw over other apps open its screen from the background. Without that permission only the voice works.
             DiagLog.safe("open ui") {
                 app.startActivity(Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
@@ -254,7 +251,6 @@ object WakeEngineManager : WakeSink {
 
     private fun hintForTimeout(id: String) = when (id) {
         "vosk" -> "Say \"Hey Olivia\" or \"Hey ARKITAK\" clearly, close to the phone. Try sensitivity Zyada. Read the log in the report."
-        "dsp" -> "The DSP is listening but did not hear '${dsp.keyphrase()}'."
         else -> "Trigger it yourself: the Quick Settings tile, the widget, or the assistant gesture."
     }
 

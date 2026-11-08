@@ -38,10 +38,10 @@ class Prefs(context: Context) {
         set(value) { sp.edit().putString("persona", Personas.valid(value)).apply() }
 
     // ---- wake word (see the wake package) ----
-    /** "dsp", "vosk" or "manual": the one engine the user picked. */
+    /** "vosk" or "manual": the one engine the user picked (an old saved "dsp" now means "vosk"). */
     var wakeEngine: String
-        get() = sp.getString("wake_engine", "dsp") ?: "dsp"
-        set(value) { sp.edit().putString("wake_engine", if (value == "vosk" || value == "manual") value else "dsp").apply() }
+        get() = if (sp.getString("wake_engine", "vosk") == "manual") "manual" else "vosk"
+        set(value) { sp.edit().putString("wake_engine", if (value == "manual") "manual" else "vosk").apply() }
 
     /** Wake mode: the conversation sleeps after silence and the chosen engine listens for the name. */
     var wakeEnabled: Boolean
@@ -61,11 +61,6 @@ class Prefs(context: Context) {
     var silenceSeconds: Int
         get() = sp.getInt("silence_s", 8).let { if (it == 5 || it == 15) it else 8 }
         set(value) { sp.edit().putInt("silence_s", value).apply() }
-
-    /** Which name the single DSP keyphrase detector listens for. */
-    var dspPersona: String
-        get() = Personas.valid(sp.getString("dsp_persona", Personas.OLIVIA))
-        set(value) { sp.edit().putString("dsp_persona", Personas.valid(value)).apply() }
 
     /** Free text typed in the diagnostics popup (e.g. whether the mic indicator was visible). */
     var micNote: String

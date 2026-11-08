@@ -71,6 +71,9 @@ class FloatingOrbService : Service() {
     private var windowManager: WindowManager? = null
     private var container: FrameLayout? = null
     private var orb: GlassOrbView? = null
+    @Volatile private var duo: DuoOrbView? = null
+    private var duoClosing = false
+    private var touchLayerView: View? = null
     private lateinit var params: WindowManager.LayoutParams
 
     // reply popup (slides out of the orb)
@@ -91,13 +94,20 @@ class FloatingOrbService : Service() {
     private var orbInWinY = 0
 
     private val listener = object : AssistantEngine.Listener {
-        override fun onState(state: String) { orb?.setState(state) }
-        override fun onLevel(level: Float) { orb?.pushAudio(level) }
+        override fun onState(state: String) { orb?.setState(state); duo?.setState(state) }
+        override fun onLevel(level: Float) { orb?.pushAudio(level); duo?.pushAudio(level) }
         override fun onMessage(message: String) {
             main.post { if (!appVisible) Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show() }
         }
         override fun onReply() { main.post { renderReplies() } }
-        override fun onPersona(persona: String) { main.post { renderHeader(); orb?.pulse(Personas.color(persona)) } }
+        override fun onPersona(persona: String) {
+            main.post {
+                renderHeader()
+                orb?.pulse(Personas.color(persona))
+                syncDuo()
+                duo?.setActive(persona)
+            }
+        }
         override fun onFloatingCommand(on: Boolean) {
             if (!on) main.postDelayed({ stopSelf() }, 2500) // let the spoken confirmation finish first
         }
@@ -116,6 +126,7 @@ class FloatingOrbService : Service() {
         renderHeader()
         renderReplies()
         applyVisibility()
+        syncDuo()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -131,6 +142,8 @@ class FloatingOrbService : Service() {
         instance = null
         engine.removeListener(listener)
         try { container?.let { windowManager?.removeView(it) } } catch (_: Exception) {}
+        duo?.destroy()
+        duo = null
         orb?.destroy()
         container = null
         orb = null
@@ -187,6 +200,7 @@ class FloatingOrbService : Service() {
 
         // Transparent layer on top of the WebView so dragging and tapping belong to the overlay, not the 3D sphere.
         val touchLayer = View(applicationContext)
+        touchLayerView = touchLayer
         val ob = FrameLayout(applicationContext)
         ob.addView(orbView, FrameLayout.LayoutParams(size, size))
         ob.addView(touchLayer, FrameLayout.LayoutParams(size, size))
@@ -276,7 +290,8 @@ class FloatingOrbService : Service() {
                 }
                 MotionEvent.ACTION_UP -> {
                     main.removeCallbacks(longPress)
-                    if (!moved && !longPressed) { if (expanded) collapse() else expand() }
+                    // While the two orbs are together (group chat) the reply popup stays closed: the window holds the pair.
+                    if (!moved && !longPressed) { if (expanded) collapse() else if (duo == null && !duoClosing) expand() }
                 }
                 MotionEvent.ACTION_CANCEL -> main.removeCallbacks(longPress)
             }
@@ -391,12 +406,68 @@ class FloatingOrbService : Service() {
         panelScroll?.post { panelScroll?.fullScroll(View.FOCUS_DOWN) }
     }
 
+    /**
+     * Group chat on: the window grows downward and the orb splits in two (Olivia above, ARKITAK below) with a line between
+     * them, like on the main screen. Group chat off: the two flow back together and the window shrinks again.
+     */
+    private fun syncDuo() {
+        val box = container ?: return
+        val wm = windowManager ?: return
+        val ob = orbBox ?: return
+        val touch = touchLayerView ?: return
+        val want = engine.groupMode
+        val d = duo
+        if (want && d == null && !duoClosing) {
+            if (expanded || collapsing) { main.postDelayed({ syncDuo() }, 400); return }
+            val dm = resources.displayMetrics
+            val nd = DuoOrbView(applicationContext) { p -> GlassOrbHandle(applicationContext, if (p == Personas.ARKITAK) "sapphire" else "ruby") }
+            nd.setActive(engine.persona)
+            nd.setState(engine.state)
+            duo = nd
+            params.height = orbSize * 2
+            params.y = params.y.coerceIn(0, max(0, dm.heightPixels - params.height))
+            setBoxHeight(ob, touch, orbSize * 2)
+            ob.addView(nd, 1, FrameLayout.LayoutParams(orbSize, orbSize * 2))
+            orb?.visibility = View.INVISIBLE
+            orb?.onPause()
+            try { wm.updateViewLayout(box, params) } catch (_: Exception) {}
+            nd.open()
+            if (appVisible) nd.onPause()
+        } else if (!want && d != null && !duoClosing) {
+            duoClosing = true
+            orb?.visibility = View.VISIBLE
+            if (!appVisible) orb?.onResume()
+            d.close {
+                ob.removeView(d)
+                d.destroy()
+                duo = null
+                duoClosing = false
+                params.height = orbSize
+                setBoxHeight(ob, touch, orbSize)
+                try { wm.updateViewLayout(box, params) } catch (_: Exception) {}
+                if (engine.groupMode) syncDuo()
+            }
+        } else if (want && d != null) {
+            d.setActive(engine.persona)
+        }
+    }
+
+    private fun setBoxHeight(ob: FrameLayout, touch: View, h: Int) {
+        (ob.layoutParams as FrameLayout.LayoutParams).height = h
+        (touch.layoutParams as FrameLayout.LayoutParams).height = h
+        ob.requestLayout()
+        touch.requestLayout()
+    }
+
     private fun applyDesign() { orb?.setDesign(Prefs(this).avatarDesign) }
 
     private fun applyVisibility() {
         val box = container ?: return
         val hide = appVisible
         box.visibility = if (hide) View.GONE else View.VISIBLE
-        if (hide) orb?.onPause() else orb?.onResume()
+        val pair = duo
+        if (hide) { orb?.onPause(); pair?.onPause() }
+        else if (pair != null) pair.onResume() // the pair is showing: the single orb stays asleep
+        else orb?.onResume()
     }
 }
