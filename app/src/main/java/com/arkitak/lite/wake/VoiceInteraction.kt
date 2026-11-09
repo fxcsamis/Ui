@@ -149,7 +149,7 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
         val want = engine.groupMode
         val d = duo
         if (want && d == null) {
-            val nd = DuoOrbView(context, horizontal = true, stars = true) { p ->
+            val nd = DuoOrbView(context, horizontal = true, stars = false, showLink = false) { p ->
                 ParticleOrbHandle(context, if (p == Personas.ARKITAK) OrbView.THEME_DARK else OrbView.THEME_RED)
             }
             nd.onTap = { hide() }

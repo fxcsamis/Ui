@@ -78,6 +78,7 @@ class DuoOrbView(
     context: Context,
     private val horizontal: Boolean = false,
     private val stars: Boolean = false,
+    private val showLink: Boolean = true,
     make: (String) -> OrbHandle
 ) : FrameLayout(context) {
 
@@ -168,16 +169,16 @@ class DuoOrbView(
 
     /**
      * Waits until both orb pages have loaded (so nothing pops in half-drawn), then calls [onVisible] (the caller fades out its single
-     * orb there) and lets the big orb divide into two that glide apart. Gives up waiting after 3 s and shows them anyway.
+     * orb there) and lets the big orb divide into two that glide apart. Gives up waiting after 7 s and shows them anyway.
      */
-    fun open(onVisible: () -> Unit = {}) {
+    fun open(instant: Boolean = false, onVisible: () -> Unit = {}) {
         var ready = 0
         val go = Runnable {
             if (cancelled || destroyed || started) return@Runnable
             started = true
             applySplit(0f)
             onVisible()
-            animateTo(1f, 900L, OvershootInterpolator(0.6f)) {}
+            if (instant) applySplit(1f) else animateTo(1f, 900L, OvershootInterpolator(0.6f)) {}
         }
         val oneLoaded: () -> Unit = {
             ready++
@@ -185,7 +186,7 @@ class DuoOrbView(
         }
         orbOlivia.whenLoaded(oneLoaded)
         orbArkitak.whenLoaded(oneLoaded)
-        postDelayed(go, 3000L)
+        postDelayed(go, 7000L)
     }
 
     /** The two orbs flow back together, then [done] is called (remove and destroy the view there). */
@@ -301,6 +302,7 @@ class DuoOrbView(
         }
 
         override fun onDraw(canvas: Canvas) {
+            if (!showLink) return // no microphone, no bars, no separate stars: only the two orbs themselves
             val a = ((progress - 0.5f) * 2f).coerceIn(0f, 1f)
             if (a <= 0f || side == 0) return
             val density = resources.displayMetrics.density

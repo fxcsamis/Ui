@@ -193,6 +193,13 @@ class OrbView @JvmOverloads constructor(
         post { webView.evaluateJavascript("window.JarvisOrb && window.JarvisOrb.setUserScale($v);", null) }
     }
 
+    /** Hide the sphere itself and keep only the light and dots around it (they then belong to the two orbs in front). */
+    fun hideSphere(hide: Boolean) {
+        if (!pageLoaded) return
+        val v = if (hide) 0.02f else 1f
+        post { webView.evaluateJavascript("window.JarvisOrb && window.JarvisOrb.setUserScale($v);", null) }
+    }
+
     /** Call from Activity/Fragment onResume(). */
     fun onResume() {
         webView.onResume()

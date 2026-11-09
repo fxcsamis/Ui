@@ -93,7 +93,9 @@ class MainActivity : Activity() {
         ).apply { topMargin = (48 * density).toInt(); rightMargin = (16 * density).toInt() })
         setContentView(root)
         // App opens with the two orbs (Olivia + ARKITAK). The Group button above switches back to one orb.
-        engine.setGroup(true)
+        // Wait until the single orb has loaded, THEN divide it into two (loading 3 orb pages at the same time on a cold start left the screen empty).
+        orb.whenLoaded { mainLoaded = true; if (duo != null || engine.groupMode) orb.hideSphere(true); startGroupOnce() }
+        root.postDelayed({ startGroupOnce() }, 6000L) // safety: never stay without the two orbs if the load callback does not come
 
         // Pinch to make the orb smaller or bigger; let go and it bounces back to its normal size.
         scaleDetector = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -125,8 +127,7 @@ class MainActivity : Activity() {
         orb.onResume()
         engine.addListener(listener)
         syncDuo()
-        if (duo != null) orb.onPause() // the pair is on screen: the single orb sleeps
-        duo?.onResume()
+        duo?.onResume() // the single orb keeps running behind the pair: it draws the dots around
         when {
             prefs.apiKey.isBlank() -> showKeyDialog(firstTime = true)
             !engine.hasMicPermission() -> requestMic()
@@ -165,7 +166,9 @@ class MainActivity : Activity() {
         val want = engine.groupMode
         val d = duo
         if (want && d == null) {
-            val nd = DuoOrbView(this, horizontal = true, stars = true) { p ->
+            val first = !autoGroupDone || !openedOnce
+            openedOnce = true
+            val nd = DuoOrbView(this, horizontal = true, stars = false, showLink = false) { p ->
                 ParticleOrbHandle(this, if (p == Personas.ARKITAK) OrbView.THEME_DARK else OrbView.THEME_RED)
             }
             nd.onTap = { onOrbTap() }
@@ -175,12 +178,12 @@ class MainActivity : Activity() {
             root.addView(nd, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
             duo = nd
             // The big orb stays until both new orbs are ready, then it divides into two.
-            nd.open {
-                orb.animate().alpha(0f).setDuration(350).withEndAction { if (duo != null) orb.onPause() }.start()
-            }
+            // App just opened: the two orbs are simply there. Group button: the big orb divides into two.
+            // The single orb stays behind (running) with only its sphere hidden, so the dots around are the orbs' own dots.
+            nd.open(instant = first) { if (mainLoaded) orb.hideSphere(true) }
         } else if (!want && d != null) {
             orb.onResume()
-            orb.animate().alpha(1f).setDuration(450).start()
+            orb.hideSphere(false)
             duo = null
             d.close {
                 root.removeView(d)
@@ -189,6 +192,17 @@ class MainActivity : Activity() {
             }
         } else if (want && d != null) {
             d.setActive(engine.persona)
+        }
+    }
+
+    private var autoGroupDone = false
+    private var mainLoaded = false
+    private var openedOnce = false
+    private fun startGroupOnce() {
+        runOnUiThread {
+            if (autoGroupDone || isDestroyed) return@runOnUiThread
+            autoGroupDone = true
+            engine.setGroup(true)
         }
     }
 
