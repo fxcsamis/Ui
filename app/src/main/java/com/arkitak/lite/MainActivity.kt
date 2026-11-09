@@ -18,6 +18,7 @@ import android.view.View
 import android.view.WindowManager
 import android.animation.ValueAnimator
 import android.view.animation.OvershootInterpolator
+import android.graphics.drawable.GradientDrawable
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -73,7 +74,26 @@ class MainActivity : Activity() {
         // The orb view now covers the whole screen so its light and the small dots spread over the full screen.
         orb = OrbView(this, fullField = true)
         root.addView(orb, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        // Test button (top right): tap it to show / hide the two-orb group animation (Olivia + ARKITAK).
+        val density = resources.displayMetrics.density
+        val groupBtn = TextView(this).apply {
+            text = "Group"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            gravity = Gravity.CENTER
+            val h = (10 * density).toInt(); val v = (6 * density).toInt()
+            setPadding(h * 2, v, h * 2, v)
+            background = GradientDrawable().apply {
+                setColor(0x33FFFFFF); cornerRadius = 24 * density; setStroke((1 * density).toInt().coerceAtLeast(1), 0x66FFFFFF)
+            }
+            setOnClickListener { engine.setGroup(!engine.groupMode) }
+        }
+        root.addView(groupBtn, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END
+        ).apply { topMargin = (48 * density).toInt(); rightMargin = (16 * density).toInt() })
         setContentView(root)
+        // App opens with the two orbs (Olivia + ARKITAK). The Group button above switches back to one orb.
+        engine.setGroup(true)
 
         // Pinch to make the orb smaller or bigger; let go and it bounces back to its normal size.
         scaleDetector = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
