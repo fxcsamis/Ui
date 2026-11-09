@@ -139,9 +139,10 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
             nd.setState(engine.state)
             frame.addView(nd, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
             duo = nd
-            main.animate().alpha(0f).setDuration(300).start()
-            main.onPause()
-            nd.open()
+            // The big orb stays until both new orbs are ready, then it divides into two.
+            nd.open {
+                main.animate().alpha(0f).setDuration(350).withEndAction { if (duo != null) main.onPause() }.start()
+            }
         } else if (!want && d != null) {
             main.onResume()
             main.animate().alpha(1f).setDuration(450).start()

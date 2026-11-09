@@ -62,6 +62,13 @@ class OrbView @JvmOverloads constructor(
     /** Long press on the orb (e.g. push-to-talk). */
     var onOrbLongPress: (() -> Unit)? = null
 
+    private var loadedCallback: (() -> Unit)? = null
+
+    /** Runs [cb] once the orb page has loaded (at once if it already has). Main thread. */
+    fun whenLoaded(cb: () -> Unit) {
+        if (pageLoaded) cb() else loadedCallback = cb
+    }
+
     private val webView = WebView(context)
     private var pageLoaded = false
     private var pendingState = STATE_IDLE
@@ -111,6 +118,7 @@ class OrbView @JvmOverloads constructor(
                     pageLoaded = true
                     applyTheme()
                     applyState()
+                    loadedCallback?.let { loadedCallback = null; it() }
                 }
             }
 

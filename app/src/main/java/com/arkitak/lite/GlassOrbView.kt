@@ -25,6 +25,12 @@ class GlassOrbView(
     private var pendingState = OrbView.STATE_IDLE
     private var pendingDesign = GlassDesigns.byId(design).id
     private var lastAudioPush = 0L
+    private var loadedCallback: (() -> Unit)? = null
+
+    /** Runs [cb] once the orb page has loaded (at once if it already has). Main thread. */
+    fun whenLoaded(cb: () -> Unit) {
+        if (pageLoaded) cb() else loadedCallback = cb
+    }
 
     init {
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -48,6 +54,7 @@ class GlassOrbView(
                     pageLoaded = true
                     applyDesign()
                     applyState()
+                    loadedCallback?.let { loadedCallback = null; it() }
                 }
             }
             val mode = if (picker) "picker" else "avatar"

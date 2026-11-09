@@ -154,9 +154,10 @@ class MainActivity : Activity() {
             nd.setState(engine.state)
             root.addView(nd, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
             duo = nd
-            orb.animate().alpha(0f).setDuration(300).start()
-            orb.onPause()
-            nd.open()
+            // The big orb stays until both new orbs are ready, then it divides into two.
+            nd.open {
+                orb.animate().alpha(0f).setDuration(350).withEndAction { if (duo != null) orb.onPause() }.start()
+            }
         } else if (!want && d != null) {
             orb.onResume()
             orb.animate().alpha(1f).setDuration(450).start()

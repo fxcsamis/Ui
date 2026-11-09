@@ -36,6 +36,8 @@ interface OrbHandle {
     fun onResume()
     fun onPause()
     fun destroy()
+    /** Runs the callback when the orb page has loaded (at once if it already has). */
+    fun whenLoaded(cb: () -> Unit)
 }
 
 /** The particle orb of the main screen, without its halo (two halos on top of each other look wrong). */
@@ -49,6 +51,7 @@ class ParticleOrbHandle(context: Context, theme: String) : OrbHandle {
     override fun onResume() = orb.onResume()
     override fun onPause() = orb.onPause()
     override fun destroy() = orb.destroy()
+    override fun whenLoaded(cb: () -> Unit) = orb.whenLoaded(cb)
 }
 
 /** The glass orb of the floating avatar. */
@@ -61,6 +64,7 @@ class GlassOrbHandle(context: Context, design: String) : OrbHandle {
     override fun onResume() = orb.onResume()
     override fun onPause() = orb.onPause()
     override fun destroy() = orb.destroy()
+    override fun whenLoaded(cb: () -> Unit) = orb.whenLoaded(cb)
 }
 
 /**
@@ -95,6 +99,9 @@ class DuoOrbView(
     private var side = 0
     private var half = 0f // half the distance between the two orb centres when fully apart
     private var anim: ValueAnimator? = null
+    private var started = false      // false while the two orb pages are still loading: nothing is shown yet
+    private var cancelled = false
+    private var destroyed = false
 
     private val gestures = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: MotionEvent): Boolean = true
@@ -110,6 +117,8 @@ class DuoOrbView(
         addView(orbArkitak.view, LayoutParams(1, 1, Gravity.CENTER))
         addView(touch, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         touch.setOnTouchListener { _, e -> gestures.onTouchEvent(e); true }
+        orbOlivia.onResume() // a new WebView only draws after it was resumed
+        orbArkitak.onResume()
         applySplit(0f)
     }
 
@@ -145,8 +154,8 @@ class DuoOrbView(
             orbOlivia.view.translationY = -d
             orbArkitak.view.translationY = d
         }
-        val a = (p * 2.5f).coerceIn(0f, 1f)
-        val sc = 1.12f - 0.12f * p
+        val a = if (started) (p * 6f).coerceIn(0f, 1f) else 0f
+        val sc = 1.9f - 0.9f * p // the single big orb divides into two smaller ones
         for (v in arrayOf(orbOlivia.view, orbArkitak.view)) {
             v.alpha = a
             v.scaleX = sc
@@ -157,10 +166,33 @@ class DuoOrbView(
 
     // ---------------------------------------------------------------- animation
 
-    fun open() = animateTo(1f, 700L, OvershootInterpolator(0.8f)) {}
+    /**
+     * Waits until both orb pages have loaded (so nothing pops in half-drawn), then calls [onVisible] (the caller fades out its single
+     * orb there) and lets the big orb divide into two that glide apart. Gives up waiting after 3 s and shows them anyway.
+     */
+    fun open(onVisible: () -> Unit = {}) {
+        var ready = 0
+        val go = Runnable {
+            if (cancelled || destroyed || started) return@Runnable
+            started = true
+            applySplit(0f)
+            onVisible()
+            animateTo(1f, 900L, OvershootInterpolator(0.6f)) {}
+        }
+        val oneLoaded: () -> Unit = {
+            ready++
+            if (ready == 2) postDelayed(go, 200L) // a short moment so that the first frame of both orbs is drawn
+        }
+        orbOlivia.whenLoaded(oneLoaded)
+        orbArkitak.whenLoaded(oneLoaded)
+        postDelayed(go, 3000L)
+    }
 
     /** The two orbs flow back together, then [done] is called (remove and destroy the view there). */
-    fun close(done: () -> Unit) = animateTo(0f, 450L, DecelerateInterpolator()) { done() }
+    fun close(done: () -> Unit) {
+        if (!started) { cancelled = true; done(); return }
+        animateTo(0f, 600L, DecelerateInterpolator()) { done() }
+    }
 
     private fun animateTo(target: Float, ms: Long, interp: Interpolator, end: () -> Unit) {
         anim?.cancel()
@@ -221,6 +253,7 @@ class DuoOrbView(
     fun onPause() { orbOlivia.onPause(); orbArkitak.onPause() }
 
     fun destroy() {
+        destroyed = true
         anim?.cancel()
         onTap = null
         onHold = null

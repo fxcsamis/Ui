@@ -428,14 +428,17 @@ class FloatingOrbService : Service() {
             params.y = params.y.coerceIn(0, max(0, dm.heightPixels - params.height))
             setBoxHeight(ob, touch, orbSize * 2)
             ob.addView(nd, 1, FrameLayout.LayoutParams(orbSize, orbSize * 2))
-            orb?.visibility = View.INVISIBLE
-            orb?.onPause()
             try { wm.updateViewLayout(box, params) } catch (_: Exception) {}
-            nd.open()
+            nd.open {
+                orb?.animate()?.alpha(0f)?.setDuration(300)?.withEndAction {
+                    if (duo != null) { orb?.visibility = View.INVISIBLE; orb?.onPause() }
+                }?.start()
+            }
             if (appVisible) nd.onPause()
         } else if (!want && d != null && !duoClosing) {
             duoClosing = true
             orb?.visibility = View.VISIBLE
+            orb?.animate()?.alpha(1f)?.setDuration(450)?.start()
             if (!appVisible) orb?.onResume()
             d.close {
                 ob.removeView(d)
