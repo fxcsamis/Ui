@@ -1,7 +1,6 @@
 package com.arkitak.lite
 
 import com.arkitak.lite.wake.DiagLog
-import com.arkitak.lite.wake.WakeEngineManager
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -203,8 +202,6 @@ class AssistantEngine private constructor(private val ctx: Context) {
         inputBuf.setLength(0)
         closeReply()
 
-        // Wake mode: the wake engine lets go of the microphone before the conversation opens it (never two AudioRecords at once).
-        DiagLog.safe("wake: session started") { WakeEngineManager.onSessionStarted() }
         lastActivityAt = SystemClock.elapsedRealtime()
 
         val m = MicStream { chunk, level -> onMicChunk(chunk, level) }
@@ -244,12 +241,10 @@ class AssistantEngine private constructor(private val ctx: Context) {
         LiveMicService.stop(ctx)
         emitLevel(0f)
         setState(OrbView.STATE_IDLE)
-        // Wake mode: the microphone is free again, so the wake engine listens for the name.
-        DiagLog.safe("wake: session ended") { WakeEngineManager.onSessionEnded() }
     }
 
     /**
-     * Wake word or manual trigger. Main thread. [personaId] is the name that was said (null = keep the current persona).
+     * Started from outside the app (the assistant gesture). Main thread. [personaId] is the name that was said (null = keep the current persona).
      * Returns true only if THIS call started the conversation; a conversation that was already running is not ours.
      */
     fun startFromWake(personaId: String?, source: String): Boolean {
@@ -346,13 +341,6 @@ class AssistantEngine private constructor(private val ctx: Context) {
         override fun run() {
             if (!active) return
             val now = SystemClock.elapsedRealtime()
-            if (prefs.wakeEnabled && state == OrbView.STATE_IDLE && now - lastActivityAt > prefs.silenceSeconds * 1000L) {
-                // Wake mode: nobody talked for the silence timeout. Sleep; the wake engine takes over again.
-                DiagLog.log("WAKE", "silence timeout (${prefs.silenceSeconds} s): conversation ends, wake engine resumes")
-                postMessage("Back to waiting for the wake word")
-                stopNow()
-                return
-            }
             if (state == OrbView.STATE_LISTENING && userSpoke && now - heardUserAt > 700L) {
                 userSpoke = false
                 thinkingSince = now

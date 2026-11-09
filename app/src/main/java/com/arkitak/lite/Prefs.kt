@@ -37,39 +37,6 @@ class Prefs(context: Context) {
         get() = Personas.valid(sp.getString("persona", Personas.OLIVIA))
         set(value) { sp.edit().putString("persona", Personas.valid(value)).apply() }
 
-    // ---- wake word (see the wake package) ----
-    /** "vosk" or "manual": the one engine the user picked (an old saved "dsp" now means "vosk"). */
-    var wakeEngine: String
-        get() = if (sp.getString("wake_engine", "vosk") == "manual") "manual" else "vosk"
-        set(value) { sp.edit().putString("wake_engine", if (value == "manual") "manual" else "vosk").apply() }
-
-    /** Wake mode: the conversation sleeps after silence and the chosen engine listens for the name. */
-    var wakeEnabled: Boolean
-        get() = sp.getBoolean("wake_enabled", false)
-        set(value) { sp.edit().putBoolean("wake_enabled", value).apply() }
-
-    /** Vosk sensitivity: 0 = Kam (RMS 600), 1 = Medium (300), 2 = Zyada (120). */
-    var voskSensitivity: Int
-        get() = sp.getInt("vosk_sens", 1).coerceIn(0, 2)
-        set(value) { sp.edit().putInt("vosk_sens", value.coerceIn(0, 2)).apply() }
-
-    var voskSound: Boolean
-        get() = sp.getBoolean("vosk_sound", true)
-        set(value) { sp.edit().putBoolean("vosk_sound", value).apply() }
-
-    /** Seconds of silence after which a wake-started conversation ends: 5, 8 or 15. */
-    var silenceSeconds: Int
-        get() = sp.getInt("silence_s", 8).let { if (it == 5 || it == 15) it else 8 }
-        set(value) { sp.edit().putInt("silence_s", value).apply() }
-
-    /** Free text typed in the diagnostics popup (e.g. whether the mic indicator was visible). */
-    var micNote: String
-        get() = sp.getString("mic_note", "") ?: ""
-        set(value) { sp.edit().putString("mic_note", value).apply() }
-
-    fun lastTest(engineId: String): String? = sp.getString("test_$engineId", null)
-    fun setLastTest(engineId: String, encoded: String) { sp.edit().putString("test_$engineId", encoded).apply() }
-
     /** Glass orb used by the floating avatar (id from GlassDesigns). */
     var avatarDesign: String
         get() = GlassDesigns.byId(sp.getString("avatar_design", GlassDesigns.DEFAULT_ID) ?: GlassDesigns.DEFAULT_ID).id

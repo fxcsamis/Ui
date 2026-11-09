@@ -34,31 +34,6 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
-        <!-- Wake word: the one Wake screen (also the "settings" screen of the assistant service) -->
-        <activity
-            android:name=".wake.WakeSettingsActivity"
-            android:exported="true"
-            android:label="Wake word"
-            android:screenOrientation="portrait" />
-
-        <!-- Manual trigger: ASSIST / VOICE_COMMAND entry, transparent, closes itself. Also the target of the tile and the widget. -->
-        <activity
-            android:name=".wake.ArkitakAssistActivity"
-            android:exported="true"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:taskAffinity=""
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
-            <intent-filter>
-                <action android:name="android.intent.action.ASSIST" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VOICE_COMMAND" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-
         <!-- Voice interaction service: Android binds it only when ARKITAK Lite is the default digital assistant. It gives the swipe-up gesture / power-button screen (black screen with the orb). -->
         <service
             android:name=".wake.ArkitakVoiceInteractionService"
@@ -88,36 +63,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </service>
-
-        <!-- Engine B: Vosk wake word, microphone foreground service (started only from a visible screen) -->
-        <service
-            android:name=".wake.VoskWakeService"
-            android:exported="false"
-            android:foregroundServiceType="microphone" />
-
-        <!-- Engine C: Quick Settings tile and home widget -->
-        <service
-            android:name=".wake.ArkitakTileService"
-            android:exported="true"
-            android:icon="@drawable/ic_launcher_orb"
-            android:label="ARKITAK"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-        </service>
-
-        <receiver
-            android:name=".wake.ArkitakWidgetProvider"
-            android:exported="true"
-            android:label="Talk to ARKITAK">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/arkitak_widget_info" />
-        </receiver>
 
         <activity
             android:name=".GeminiSettingsActivity"

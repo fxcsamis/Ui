@@ -25,8 +25,4 @@ android {
 dependencies {
     // WebSocket client for the Gemini Live conversation (same version as the main ARKITAK app)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-
-    // Wake engine B (Vosk): offline recognition of the two names. The model goes in app/src/main/assets/model-hi/ (see README).
-    implementation("com.alphacephei:vosk-android:0.3.47@aar")
-    implementation("net.java.dev.jna:jna:5.13.0@aar")
 }

@@ -13,6 +13,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
+import android.widget.Toast
 import com.arkitak.lite.AssistantEngine
 import com.arkitak.lite.DuoOrbView
 import com.arkitak.lite.OrbView
@@ -33,10 +34,7 @@ class ArkitakVoiceInteractionService : VoiceInteractionService() {
     override fun onReady() {
         super.onReady()
         instance = this
-        DiagLog.safe("VIS onReady") {
-            WakeEngineManager.init(applicationContext)
-            DiagLog.log("VIS", "ARKITAK is the active assistant service")
-        }
+        DiagLog.log("VIS", "ARKITAK is the active assistant service")
     }
 
     override fun onShutdown() {
@@ -69,6 +67,7 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
         override fun onState(state: String) { orb?.setState(state); duo?.setState(state) }
         override fun onLevel(level: Float) { orb?.pushAudio(level); duo?.pushAudio(level) }
         override fun onPersona(persona: String) { root?.post { syncDuo(); duo?.setActive(persona) } }
+        override fun onMessage(message: String) { root?.post { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() } }
     }
 
     override fun onCreateContentView(): View {
@@ -93,10 +92,9 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         DiagLog.safe("session onShow") {
-            WakeEngineManager.init(context.applicationContext)
             orb?.onResume()
-            // This screen is already the UI: do not also open the main app behind it.
-            owns = WakeEngineManager.onTrigger("assistant gesture / power button", openUi = false)
+            // This screen is the UI. startFromWake is true only if THIS call started the conversation.
+            owns = engine.startFromWake(null, "assistant gesture / power button")
             DiagLog.log("SESSION", "onShow (flags=$showFlags) ownsConversation=$owns")
             if (!listening) { listening = true; engine.addListener(listener) }
             syncDuo()
@@ -110,7 +108,7 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
             duo?.onPause()
             if (owns) {
                 DiagLog.log("SESSION", "onHide: stopping the conversation this session started")
-                WakeEngineManager.stopConversationFromTrigger()
+                engine.stop()
             }
             owns = false
         }
@@ -133,7 +131,7 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
         val want = engine.groupMode
         val d = duo
         if (want && d == null) {
-            val nd = DuoOrbView(context) { p ->
+            val nd = DuoOrbView(context, horizontal = true, stars = true) { p ->
                 ParticleOrbHandle(context, if (p == Personas.ARKITAK) OrbView.THEME_DARK else OrbView.THEME_RED)
             }
             nd.onTap = { hide() }

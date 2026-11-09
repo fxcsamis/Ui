@@ -1,8 +1,5 @@
 package com.arkitak.lite
 
-import com.arkitak.lite.wake.CrashReporter
-import com.arkitak.lite.wake.WakeEngineManager
-import com.arkitak.lite.wake.WakeSettingsActivity
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
@@ -92,9 +89,6 @@ class MainActivity : Activity() {
             override fun onScaleEnd(detector: ScaleGestureDetector) { springBack() }
         })
 
-        if (CrashReporter.list(this).isNotEmpty()) {
-            Toast.makeText(this, "A crash report was saved. Long-press the orb > Wake word and diagnostics to read or send it.", Toast.LENGTH_LONG).show()
-        }
         orb.setTheme(OrbView.THEME_DARK)
         orb.onOrbTap = { onOrbTap() }
         orb.onOrbLongPress = { showMenu() }
@@ -116,8 +110,6 @@ class MainActivity : Activity() {
         when {
             prefs.apiKey.isBlank() -> showKeyDialog(firstTime = true)
             !engine.hasMicPermission() -> requestMic()
-            // Wake mode: the wake engine listens and the conversation starts on the name (tap the orb to start it by hand).
-            prefs.wakeEnabled -> WakeEngineManager.restore()
             !engine.active -> engine.start()
         }
     }
@@ -153,7 +145,7 @@ class MainActivity : Activity() {
         val want = engine.groupMode
         val d = duo
         if (want && d == null) {
-            val nd = DuoOrbView(this) { p ->
+            val nd = DuoOrbView(this, horizontal = true, stars = true) { p ->
                 ParticleOrbHandle(this, if (p == Personas.ARKITAK) OrbView.THEME_DARK else OrbView.THEME_RED)
             }
             nd.onTap = { onOrbTap() }
@@ -240,7 +232,7 @@ class MainActivity : Activity() {
             if (floatingOn) "Floating avatar: ON (tap to turn off)" else "Floating avatar: OFF (tap to turn on)",
             "Choose avatar orb (glass designs)",
             "Voice: ${Personas.name(engine.persona)} (tap to switch to ${Personas.name(Personas.other(engine.persona))})",
-            "Wake word and diagnostics",
+            "Default assistant (for the swipe-up gesture)",
             if (engine.groupMode) "Group chat: ON (tap to turn off)" else "Group chat: talk to both (tap to turn on)",
             "Let Olivia and ARKITAK talk to each other"
         )
@@ -252,7 +244,9 @@ class MainActivity : Activity() {
                     1 -> if (FloatingOrbService.running) FloatingOrbService.stop(this) else enableFloating()
                     2 -> enableFloating()
                     3 -> engine.switchPersona(Personas.other(engine.persona))
-                    4 -> startActivity(Intent(this, WakeSettingsActivity::class.java))
+                    4 -> try { startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)) } catch (_: Exception) {
+                        Toast.makeText(this, "This phone has no screen for that setting.", Toast.LENGTH_LONG).show()
+                    }
                     5 -> engine.setGroup(!engine.groupMode)
                     6 -> engine.startBanter()
                 }

@@ -9,6 +9,5 @@
 <voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:sessionService="com.arkitak.lite.wake.ArkitakVoiceInteractionSessionService"
     android:recognitionService="com.arkitak.lite.wake.ArkitakRecognitionService"
-    android:settingsActivity="com.arkitak.lite.wake.WakeSettingsActivity"
     android:supportsAssist="true"
     android:supportsLaunchVoiceAssistFromKeyguard="true" />
