@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
-import android.provider.Settings
-import com.arkitak.lite.FloatingOrbService
 import android.service.voice.VoiceInteractionService
 import android.service.voice.VoiceInteractionSession
 import android.service.voice.VoiceInteractionSessionService
@@ -62,7 +60,6 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
     private var orb: OrbView? = null
     private var duo: DuoOrbView? = null
     private var listening = false
-    private var hintView: TextView? = null
 
     private val engine: AssistantEngine get() = AssistantEngine.get(context.applicationContext)
 
@@ -74,7 +71,7 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
     }
 
     override fun onCreateContentView(): View {
-        val frame = FrameLayout(context).apply { setBackgroundColor(Color.TRANSPARENT) }
+        val frame = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
         val o = OrbView(context, fullField = true)
         o.setTheme(OrbView.THEME_DARK)
         o.onOrbTap = { hide() }
@@ -88,7 +85,6 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
         }
         frame.addView(hint, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
         root = frame
-        hintView = hint
         orb = o
         return frame
     }
@@ -96,20 +92,6 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         DiagLog.safe("session onShow") {
-            // Gesture / power button: NO full screen. Show only the small floating orb over the home screen and close this screen.
-            if (Settings.canDrawOverlays(context)) {
-                owns = false // the floating orb keeps the conversation going; nothing to stop on hide
-                engine.startFromWake(null, "assistant gesture / power button")
-                if (!FloatingOrbService.running) {
-                    try { FloatingOrbService.start(context.applicationContext) } catch (t: Throwable) { DiagLog.log("SESSION", "floating orb start failed: $t") }
-                }
-                root?.post { hide() }
-                return@safe
-            }
-            // No overlay permission yet: fall back to a SMALL orb on a transparent screen (home screen stays visible behind it).
-            root?.setBackgroundColor(Color.TRANSPARENT)
-            hintView?.visibility = View.GONE
-            orb?.setOrbScale(0.45f)
             orb?.onResume()
             // This screen is the UI. startFromWake is true only if THIS call started the conversation.
             owns = engine.startFromWake(null, "assistant gesture / power button")
@@ -149,7 +131,7 @@ class ArkitakVoiceInteractionSession(context: Context) : VoiceInteractionSession
         val want = engine.groupMode
         val d = duo
         if (want && d == null) {
-            val nd = DuoOrbView(context, horizontal = true, stars = false, showLink = false) { p ->
+            val nd = DuoOrbView(context, horizontal = true, stars = true) { p ->
                 ParticleOrbHandle(context, if (p == Personas.ARKITAK) OrbView.THEME_DARK else OrbView.THEME_RED)
             }
             nd.onTap = { hide() }

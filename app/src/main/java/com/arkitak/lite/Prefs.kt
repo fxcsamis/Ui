@@ -28,15 +28,8 @@ class Prefs(context: Context) {
         get() = sp.getString("voice_arkitak", DEFAULT_ARKITAK_VOICE) ?: DEFAULT_ARKITAK_VOICE
         set(value) { sp.edit().putString("voice_arkitak", value.trim().ifEmpty { DEFAULT_ARKITAK_VOICE }).apply() }
 
-    /** ARKITAK always has its OWN model. Blank = the default below (a different model from Olivia's), never Olivia's model. */
     var arkitakModel: String
-        get() {
-            val v = (sp.getString("model_arkitak", "") ?: "").trim()
-            val mine = if (v.isEmpty()) DEFAULT_ARKITAK_MODEL else v
-            val full = if (mine.startsWith("models/")) mine else "models/$mine"
-            // If the saved value equals Olivia's model, move ARKITAK to the other model so the two never share one LLM.
-            return if (full == liveModel) LIVE_MODELS.firstOrNull { it != liveModel } ?: full else full
-        }
+        get() = sp.getString("model_arkitak", "") ?: ""
         set(value) { sp.edit().putString("model_arkitak", value.trim()).apply() }
 
     /** Which persona answers right now ("olivia" or "arkitak"); remembered between launches. */
@@ -66,7 +59,6 @@ class Prefs(context: Context) {
         // Same Live models, voices and default voice as the main ARKITAK app (GeminiConstants).
         const val DEFAULT_LIVE_MODEL = "models/gemini-3.1-flash-live-preview"
         const val DEFAULT_VOICE = "Aoede"
-        const val DEFAULT_ARKITAK_MODEL = "models/gemini-3.8-live"
         const val DEFAULT_ARKITAK_VOICE = "Charon" // deep, clear, warm
         val LIVE_MODELS = listOf("models/gemini-3.1-flash-live-preview", "models/gemini-3.8-live")
         val VOICES = listOf("Aoede", "Leda", "Zephyr", "Kore", "Sulafat", "Despina", "Achernar", "Callirrhoe", "Puck", "Charon", "Fenrir", "Orus", "Algenib", "Alnilam", "Iapetus", "Umbriel")
